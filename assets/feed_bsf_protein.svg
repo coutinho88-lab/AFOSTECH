@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgAlt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#451a03"/>
+      <stop offset="50%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <filter id="shadowB">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="480" fill="url(#bgAlt)"/>
+
+  <!-- Top Badge -->
+  <rect x="40" y="30" width="370" height="32" rx="16" fill="rgba(255,255,255,0.15)"/>
+  <text x="56" y="51" fill="#fde68a" font-family="system-ui, sans-serif" font-size="12" font-weight="800">SUSTAINABLE PROTEIN METRICS • LCA COMPARISON</text>
+
+  <!-- Metric 1: Water footprint -->
+  <g transform="translate(180, 230)" filter="url(#shadowB)">
+    <rect x="-110" y="-130" width="220" height="260" rx="16" fill="#ffffff"/>
+    <text x="0" y="-85" text-anchor="middle" font-size="36">💧</text>
+    <text x="0" y="-45" text-anchor="middle" fill="#0f172a" font-family="system-ui, sans-serif" font-size="15" font-weight="900">Water Needed</text>
+    <text x="0" y="-25" text-anchor="middle" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">per 1kg Pure Protein</text>
+
+    <!-- Comparison bars -->
+    <text x="-90" y="20" fill="#dc2626" font-family="system-ui, sans-serif" font-size="11" font-weight="800">Beef: 15,400 L</text>
+    <rect x="-90" y="28" width="180" height="14" rx="7" fill="#fca5a5"/>
+    <rect x="-90" y="28" width="180" height="14" rx="7" fill="#ef4444"/>
+
+    <text x="-90" y="66" fill="#059669" font-family="system-ui, sans-serif" font-size="11" font-weight="800">BSF Larvae: 320 L</text>
+    <rect x="-90" y="74" width="180" height="14" rx="7" fill="#d1fae5"/>
+    <rect x="-90" y="74" width="22" height="14" rx="7" fill="#10b981"/>
+
+    <rect x="-80" y="100" width="160" height="20" rx="10" fill="#ecfdf5"/>
+    <text x="0" y="114" text-anchor="middle" fill="#047857" font-family="system-ui, sans-serif" font-size="11" font-weight="900">98% LESS WATER</text>
+  </g>
+
+  <!-- Metric 2: Complete Amino Acid Score -->
+  <g transform="translate(420, 230)" filter="url(#shadowB)">
+    <rect x="-110" y="-130" width="220" height="260" rx="16" fill="#ffffff"/>
+    <text x="0" y="-85" text-anchor="middle" font-size="36">🧬</text>
+    <text x="0" y="-45" text-anchor="middle" fill="#0f172a" font-family="system-ui, sans-serif" font-size="15" font-weight="900">Essential Aminos</text>
+    <text x="0" y="-25" text-anchor="middle" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">PDCAAS Bioavailability</text>
+
+    <circle cx="0" cy="30" r="42" fill="#fef3c7" stroke="#f59e0b" stroke-width="4"/>
+    <text x="0" y="32" text-anchor="middle" fill="#b45309" font-family="system-ui, sans-serif" font-size="20" font-weight="900">0.94</text>
+    <text x="0" y="50" text-anchor="middle" fill="#92400e" font-family="system-ui, sans-serif" font-size="9" font-weight="800">SCORE / 1.0</text>
+
+    <rect x="-80" y="95" width="160" height="24" rx="12" fill="#fef3c7"/>
+    <text x="0" y="111" text-anchor="middle" fill="#b45309" font-family="system-ui, sans-serif" font-size="11" font-weight="800">All 9 Essential Aminos</text>
+  </g>
+
+  <!-- Metric 3: Feed Conversion Ratio -->
+  <g transform="translate(660, 230)" filter="url(#shadowB)">
+    <rect x="-110" y="-130" width="220" height="260" rx="16" fill="#ffffff"/>
+    <text x="0" y="-85" text-anchor="middle" font-size="36">♻️</text>
+    <text x="0" y="-45" text-anchor="middle" fill="#0f172a" font-family="system-ui, sans-serif" font-size="15" font-weight="900">Feed Conversion</text>
+    <text x="0" y="-25" text-anchor="middle" fill="#64748b" font-family="system-ui, sans-serif" font-size="12">FCR Agro-Waste Efficiency</text>
+
+    <text x="0" y="30" text-anchor="middle" fill="#047857" font-family="system-ui, sans-serif" font-size="32" font-weight="900">1.5 : 1</text>
+    <text x="0" y="52" text-anchor="middle" fill="#475569" font-family="system-ui, sans-serif" font-size="11">grows on spent brewery mash</text>
+
+    <rect x="-80" y="95" width="160" height="24" rx="12" fill="#ecfdf5"/>
+    <text x="0" y="111" text-anchor="middle" fill="#047857" font-family="system-ui, sans-serif" font-size="11" font-weight="800">Carbon Negative Circle</text>
+  </g>
+
+  <!-- Bottom Banner -->
+  <rect x="40" y="415" width="720" height="42" rx="8" fill="rgba(0,0,0,0.4)"/>
+  <text x="60" y="441" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="13">
+    🦗 <tspan font-weight="800" fill="#fde68a">Food Tech Reality:</tspan> Defatted Hermetia protein powder has zero insect taste when extruded at 145°C with jackfruit starch!
+  </text>
+</svg>

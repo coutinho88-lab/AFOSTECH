@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <defs>
+    <linearGradient id="chito-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#831843"/>
+      <stop offset="60%" stop-color="#be123c"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" rx="16" fill="url(#chito-bg)"/>
+  
+  <g transform="translate(160, 90)">
+    <ellipse cx="140" cy="220" rx="120" ry="25" fill="#4c0519" fill-opacity="0.4"/>
+    
+    <!-- Film roll -->
+    <path d="M40 70 C40 50, 100 50, 100 70 L100 170 C100 190, 40 190, 40 170 Z" fill="#fecdd3" stroke="#e11d48" stroke-width="3"/>
+    <ellipse cx="70" cy="70" rx="30" ry="14" fill="#fda4af" stroke="#e11d48" stroke-width="2"/>
+    <circle cx="70" cy="70" r="12" fill="#881337"/>
+    
+    <!-- Unrolled transparent golden-amber bio film sheet -->
+    <path d="M100 110 Q160 100 230 130 L220 200 Q150 170 100 170 Z" fill="#fef08a" fill-opacity="0.75" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="170" cy="145" r="4" fill="#d97706" fill-opacity="0.6"/>
+    <circle cx="190" cy="155" r="3" fill="#d97706" fill-opacity="0.6"/>
+    <circle cx="150" cy="160" r="5" fill="#d97706" fill-opacity="0.6"/>
+
+    <!-- Fresh strawberry wrapped inside -->
+    <g transform="translate(160, 150)">
+      <path d="M25 15 C10 15 5 35 15 50 C25 65 30 65 40 50 C50 35 45 15 30 15 Z" fill="#e11d48"/>
+      <!-- Seeds -->
+      <circle cx="20" cy="30" r="1.5" fill="#fef08a"/>
+      <circle cx="30" cy="32" r="1.5" fill="#fef08a"/>
+      <circle cx="25" cy="42" r="1.5" fill="#fef08a"/>
+      <!-- Calyx leaves -->
+      <path d="M25 15 L20 8 M25 15 L28 6 M25 15 L35 10" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(20, 20)">
+      <circle cx="20" cy="20" r="26" fill="#ffffff" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.2))"/>
+      <text x="20" y="27" font-family="sans-serif" font-size="20" text-anchor="middle">🥭</text>
+    </g>
+  </g>
+
+  <!-- Tag Pill -->
+  <rect x="30" y="30" width="180" height="36" rx="18" fill="#000000" fill-opacity="0.35"/>
+  <circle cx="48" cy="48" r="7" fill="#fb7185"/>
+  <text x="64" y="53" font-family="sans-serif" font-weight="700" font-size="13" fill="#ffffff" letter-spacing="0.5">CIRCULAR PACKAGING</text>
+
+  <!-- University badge -->
+  <rect x="400" y="30" width="170" height="36" rx="18" fill="#ffffff"/>
+  <text x="485" y="53" font-family="sans-serif" font-weight="800" font-size="14" fill="#b91c1c" text-anchor="middle">MAKERERE UGANDA</text>
+
+  <!-- Overlay Title -->
+  <text x="30" y="355" font-family="sans-serif" font-size="28" font-weight="900" fill="#ffffff">BioChitoWrap™ Active Film</text>
+  <text x="30" y="380" font-family="sans-serif" font-size="14" font-weight="600" fill="#fecdd3">Chitosan + Mango Peel Polyphenol Film (28-day Biodegradation)</text>
+</svg>

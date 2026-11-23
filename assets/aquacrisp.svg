@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <defs>
+    <linearGradient id="aqua-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#581c87"/>
+      <stop offset="60%" stop-color="#7e22ce"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" rx="16" fill="url(#aqua-bg)"/>
+  <g transform="translate(190, 90)">
+    <ellipse cx="110" cy="220" rx="100" ry="20" fill="#2e1065" fill-opacity="0.5"/>
+    <!-- Snack bag / bowl -->
+    <path d="M40 180 Q110 230 180 180 L195 100 Q110 90 25 100 Z" fill="#f3e8ff" stroke="#c084fc" stroke-width="2"/>
+    <!-- Puffed collagen chips -->
+    <ellipse cx="90" cy="115" rx="22" ry="14" fill="#fde047" stroke="#ca8a04" stroke-width="2"/>
+    <ellipse cx="130" cy="120" rx="20" ry="13" fill="#facc15" stroke="#ca8a04" stroke-width="2"/>
+    <ellipse cx="75" cy="135" rx="18" ry="12" fill="#fde047" stroke="#ca8a04" stroke-width="2"/>
+    <ellipse cx="120" cy="140" rx="25" ry="15" fill="#facc15" stroke="#ca8a04" stroke-width="2"/>
+    <ellipse cx="150" cy="135" rx="18" ry="11" fill="#fde047" stroke="#ca8a04" stroke-width="2"/>
+    <!-- Snap acoustic lines -->
+    <path d="M150 90 L165 80 M155 98 L170 95 M145 108 L160 115" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <rect x="30" y="30" width="180" height="36" rx="18" fill="#000000" fill-opacity="0.35"/>
+  <circle cx="48" cy="48" r="7" fill="#c084fc"/>
+  <text x="64" y="53" font-family="sans-serif" font-weight="700" font-size="13" fill="#ffffff" letter-spacing="0.5">CIRCULAR SEAFOOD</text>
+  <rect x="390" y="30" width="180" height="36" rx="18" fill="#ffffff"/>
+  <text x="480" y="53" font-family="sans-serif" font-weight="800" font-size="14" fill="#7e22ce" text-anchor="middle">STELLENBOSCH SA</text>
+  <text x="30" y="355" font-family="sans-serif" font-size="28" font-weight="900" fill="#ffffff">AquaCrisp: Collagen Puffs</text>
+  <text x="30" y="380" font-family="sans-serif" font-size="14" font-weight="600" fill="#f3e8ff">Upcycled Tilapia Skin Marine Collagen Snack (68.2% Collagen Protein)</text>
+</svg>

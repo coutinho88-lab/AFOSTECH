@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFOSTECH | Association of Food Science and Technology Students</title>
+  <meta name="description" content="Official platform for the Association of Food Science and Technology Students (AFOSTECH). Showcasing student food innovations, verified innovators board of honour, and promoting positive peer competition across universities.">
+  
+  <!-- Modern Typography Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       TOP UTILITY BAR (Partnership Requests, Staff Login & Innovators Portal)
+       ========================================================================= -->
+  <div class="top-utility-bar">
+    <div class="container utility-container">
+      <div class="utility-left">
+        <span style="color: #10b981; font-weight: 800;">AFOSTECH Official Portal</span>
+        <span style="color: #64748b;">|</span>
+        <a href="#" class="utility-tag-link" onclick="switchTab('news'); return false;">
+          📢 <span style="color: #fde68a;">News:</span> 2026 Inter-University Pitch Cup Registration is Live
+        </a>
+      </div>
+
+      <div class="utility-right">
+        <!-- Request Partnership Button -->
+        <button class="btn-utility partner js-open-partnership" title="Universities can apply to affiliate their department">
+          🏛️ Request Partnership
+        </button>
+
+        <!-- Student Innovators Portal -->
+        <button id="navInnovatorBtn" class="btn-utility js-open-innovator-auth" title="Student innovator login and CV dashboard">
+          🎓 Innovator Portal
+        </button>
+
+        <!-- Staff Officials Only Login -->
+        <button id="navStaffLoginBtn" class="btn-utility js-open-staff-login" title="Restricted access for AFOSTECH organization officials">
+          🔒 Staff Portal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MAIN NAVIGATION HEADER
+       ========================================================================= -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="#" class="brand-link" onclick="switchTab('dashboard'); return false;">
+        <img src="assets/logo.jpg" alt="AFOSTECH Official Seal" class="brand-logo-img">
+        <div class="brand-meta">
+          <span class="brand-title">AFOS<span class="brand-title-accent">TECH</span></span>
+          <span class="brand-tagline">Food Science &amp; Technology Students &bull; Est. 1997</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Tabs -->
+      <nav class="main-nav">
+        <ul class="nav-links">
+          <li>
+            <button class="nav-btn active" data-tab="dashboard">
+              <span>🏠</span> Dashboard
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="catalog">
+              <span>🔬</span> Innovations
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="theses">
+              <span>📚</span> Theses
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="feed">
+              <span>🥑</span> Food Feed
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="leaderboard">
+              <span>🏆</span> Leaderboard
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="innovators">
+              <span>🎖️</span> Honour Board
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="news">
+              <span>📰</span> News
+            </button>
+          </li>
+          <li>
+            <button class="nav-btn" data-tab="about">
+              <span>🏛️</span> About
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Submit Innovation Action Button (Restricted to Innovators) -->
+      <div class="nav-action-wrapper">
+        <button class="submit-btn-nav js-open-submit" id="navSubmitBtn" title="Innovator member access required">
+          <span>🔒</span> Submit
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       VIEW 1: DASHBOARD (Organization Intro, Stats & Previews)
+       ========================================================================= -->
+  <main id="dashboardView">
+    
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="container hero-grid">
+        <div>
+          <div class="hero-tag">
+            <span class="hero-tag-pulse"></span>
+            Inter-University Innovation Consortium
+          </div>
+          <h1 class="hero-title">
+            Where Food Science Meets <span class="gradient-text">Student Ingenuity</span>
+          </h1>
+          <p class="hero-lead">
+            Welcome to the <strong>Association of Food Science and Technology Students (AFOSTECH)</strong>. We are a premier collegiate alliance uniting food science and human nutrition students across universities to showcase prototypes, upcycle agro-waste, and inspire positive peer competition.
+          </p>
+
+          <div class="hero-actions">
+            <button class="btn-primary" onclick="switchTab('catalog')">
+              <span>Explore Student Products</span> →
+            </button>
+            <button class="btn-outline" onclick="switchTab('innovators')">
+              <span>🎖️ Verified Board of Honour</span>
+            </button>
+            <button class="btn-outline js-open-partnership">
+              <span>🏛️ Request Campus Partnership</span>
+            </button>
+          </div>
+
+          <!-- Quick Stats Row (Live Actual Details from Consortium Data) -->
+          <div class="hero-stats-row" id="heroStatsRow">
+            <div class="stat-item" title="7 accredited university chapters actively presenting innovations">
+              <div class="stat-num" id="statPartnerUnivs">7</div>
+              <div class="stat-label">Partner Universities</div>
+            </div>
+            <div class="stat-item" title="23 student scientists &amp; food technologists presenting research">
+              <div class="stat-num" id="statStudentScientists">23</div>
+              <div class="stat-label">Student Scientists</div>
+            </div>
+            <div class="stat-item" title="8 validated food, beverage and packaging prototypes in catalog">
+              <div class="stat-num" id="statPrototypes">8</div>
+              <div class="stat-label">Prototypes Developed</div>
+            </div>
+            <div class="stat-item" title="8 protected patent filings across partner chapters">
+              <div class="stat-num" id="statPatents">8</div>
+              <div class="stat-label">Patents Filed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Featured Project Spotlight Card on Hero -->
+        <div id="heroSpotlight" class="hero-spotlight-card">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Mini News Flow Ticker -->
+    <section style="background: #ffffff; border-bottom: 1px solid var(--border-color); padding: 16px 0;">
+      <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.78rem; font-weight: 900; text-transform: uppercase; color: var(--primary); letter-spacing: 0.8px;">
+            📢 Public Consortium Bulletins &amp; Competition Links
+          </span>
+          <a href="#" onclick="switchTab('news'); return false;" style="font-size: 0.8rem; font-weight: 700; color: var(--primary); text-decoration: none;">
+            View All News Updates →
+          </a>
+        </div>
+        <div id="dashboardNewsFlow">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Organization Introduction & Strategic Pillars -->
+    <section class="section">
+      <div class="container">
+        
+        <!-- Big Org Overview Banner -->
+        <div class="org-intro-banner">
+          <div class="org-banner-grid">
+            <div>
+              <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color: #a7f3d0;">The AFOSTECH Mission</span>
+              <h2 class="org-banner-title">Empowering Future Food Technologists Across Africa &amp; Beyond</h2>
+              <p class="org-banner-desc">
+                AFOSTECH transforms classroom food chemistry, microbiology, and unit operations into scalable solutions for post-harvest loss, micronutrient deficiencies, and sustainable food packaging. By connecting universities into one collaborative ecosystem, students learn from each other's research, review peer formulations, and compete constructively for research seed grants.
+              </p>
+              <div class="org-banner-values">
+                <span class="org-value-pill">🔬 Rigorous Sensory Evaluation</span>
+                <span class="org-value-pill">🌾 Indigenous Crop Biofortification</span>
+                <span class="org-value-pill">🤝 Inter-University Mentorship</span>
+                <span class="org-value-pill">♻️ Zero-Waste Circular Economy</span>
+              </div>
+            </div>
+            <div class="org-banner-quote">
+              <p>"Healthy peer competition between universities transforms final-year thesis papers into market-ready prototypes that attract real industry incubation."</p>
+              <cite>— Prof. Mary Anyango, Dean &amp; Senior Faculty Advisor</cite>
+            </div>
+          </div>
+        </div>
+
+        <!-- Four Core Pillars -->
+        <div class="section-header">
+          <div>
+            <span class="section-tag">Core Tenets</span>
+            <h2 class="section-title">Four Pillars of Academic &amp; Product Excellence</h2>
+          </div>
+        </div>
+
+        <div class="pillars-grid">
+          <div class="pillar-card">
+            <div class="pillar-icon-box">🔬</div>
+            <h3 class="pillar-title">Nutritional Biotechnology &amp; R&amp;D</h3>
+            <p class="pillar-desc">Bio-fortifying indigenous tubers, pseudocereals, and pulses to create high-bioavailability functional formulations.</p>
+          </div>
+          <div class="pillar-card">
+            <div class="pillar-icon-box">🏆</div>
+            <h3 class="pillar-title">Inter-University Peer Competition</h3>
+            <p class="pillar-desc">Annual Food Innovation cups, blind sensory panels, and competitive pitch showcases that drive academic rigor.</p>
+          </div>
+          <div class="pillar-card">
+            <div class="pillar-icon-box">🛡️</div>
+            <h3 class="pillar-title">Food Safety &amp; HACCP Standards</h3>
+            <p class="pillar-desc">Instilling strict food hygiene, microbiology testing, and ISO/Codex Alimentarius standards in student labs.</p>
+          </div>
+          <div class="pillar-card">
+            <div class="pillar-icon-box">♻️</div>
+            <h3 class="pillar-title">Upcycling &amp; Circular Packaging</h3>
+            <p class="pillar-desc">Transforming mango peels, aquaculture waste, and agricultural stalks into biodegradable packaging films.</p>
+          </div>
+        </div>
+
+        <!-- Featured Best Projects Preview Section -->
+        <div class="section-header" style="margin-top: 24px;">
+          <div>
+            <span class="section-tag">Hall of Fame</span>
+            <h2 class="section-title">Previews of Top Student Innovations</h2>
+            <p class="section-subtitle">A curated preview of the highest-rated prototypes formulated by undergraduate and postgraduate food science students across participating campuses.</p>
+          </div>
+          <button class="btn-outline" onclick="switchTab('catalog')">
+            View All Innovations →
+          </button>
+        </div>
+
+        <!-- 3 Best Projects Grid -->
+        <div id="dashboardFeaturedGrid" class="projects-grid">
+          <!-- Injected dynamically by app.js -->
+        </div>
+
+        <!-- Challenge Highlight Banner -->
+        <div style="margin-top: 48px; background: linear-gradient(135deg, #064e3b 0%, #047857 35%, #0284c7 75%, #7c3aed 100%); border-radius: 20px; padding: 36px; color: white; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px; border: 1.5px solid rgba(255, 255, 255, 0.25); box-shadow: 0 16px 36px -8px rgba(6, 78, 59, 0.25);">
+          <div>
+            <span style="background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; font-size: 0.78rem; font-weight: 900; padding: 5px 14px; border-radius: 9999px; text-transform: uppercase; border: 1px solid #fcd34d; display: inline-flex; align-items: center; gap: 5px;">
+              🏆 Active Inter-University Challenge
+            </span>
+            <h3 style="color: white; font-size: 1.7rem; font-weight: 900; margin: 10px 0 6px;">All-African Food Innovation Challenge 2026</h3>
+            <p style="color: #e0f2fe; font-size: 0.98rem; max-width: 620px; line-height: 1.55;">
+              Theme: <em>Indigenous Crops, Zero-Waste &amp; Climate-Proof Nutrition</em>. Campuses submit laboratory prototypes for peer sensory trials. Grand Prize: <strong style="color: #fde68a;">$7,500 Seed Grant + Incubation</strong>.
+            </p>
+          </div>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <div style="text-align: right; background: rgba(0, 0, 0, 0.25); padding: 10px 18px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.15);">
+              <div style="font-size: 2rem; font-weight: 900; color: #38bdf8; line-height: 1;">42 Days</div>
+              <div style="font-size: 0.74rem; color: #e2e8f0; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Live Tasting Finals</div>
+            </div>
+            <button class="btn-primary js-open-submit" id="heroEntrySubmitBtn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);" title="Innovator login required">
+              🔒 Innovator Entry →
+            </button>
+          </div>
+        </div>
+
+        <!-- Research Theses Repository Spotlight Banner -->
+        <div style="margin-top: 32px; background: #ffffff; border-radius: 20px; padding: 32px; border: 1.5px solid #a7f3d0; box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
+          <div style="display: flex; align-items: flex-start; gap: 20px; max-width: 720px;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #059669 0%, #0284c7 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+              📚
+            </div>
+            <div>
+              <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #059669; letter-spacing: 0.5px;">
+                Open-Access Academic Repository
+              </span>
+              <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--navy); margin: 4px 0 6px;">
+                Student Research Theses &amp; Dissertations
+              </h3>
+              <p style="font-size: 0.92rem; color: #475569; line-height: 1.55;">
+                Explore undergraduate and postgraduate dissertations submitted by food science innovators across partner campuses. Read comprehensive abstracts, inspect analytical chemistry methodologies, download full thesis documents, and contribute peer critique.
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button class="btn-outline" onclick="switchTab('theses')">
+              Browse Repository →
+            </button>
+            <button class="btn-primary js-open-submit-thesis" id="heroThesisSubmitBtn" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);" title="Innovator login required">
+              🔒 Innovator Thesis Submission
+            </button>
+          </div>
+        </div>
+
+        <!-- Public Food Science Community Feed Spotlight Banner -->
+        <div style="margin-top: 32px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #eff6ff 100%); border-radius: 20px; padding: 32px; border: 1.5px solid #a7f3d0; box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
+          <div style="display: flex; align-items: flex-start; gap: 20px; max-width: 720px;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+              🥑
+            </div>
+            <div>
+              <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #059669; letter-spacing: 0.5px;">
+                Open Public Education &amp; Science Feed
+              </span>
+              <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--navy); margin: 4px 0 6px;">
+                Community Food Science Feed
+              </h3>
+              <p style="font-size: 0.92rem; color: #475569; line-height: 1.55;">
+                Demystifying food science for the public! Student innovators share bite-sized kitchen chemistry, pilot plant video demonstrations, and laboratory breakthroughs. Like, repost, comment, or message student scientists directly.
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button class="btn-outline" onclick="switchTab('feed')">
+              Explore Food Feed →
+            </button>
+            <button class="btn-primary js-open-create-feed-post" id="dashboardCreatePostBtn" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);" title="Innovator login required">
+              <span>🔒</span> Share Food Science Post
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       VIEW 2: INNOVATIONS CATALOG (Showcasing Multi-University Products)
+       ========================================================================= -->
+  <section id="catalogView" class="section" style="display: none;">
+    <div class="container">
+      
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Inter-University Showcase</span>
+          <h2 class="section-title">Student Innovations &amp; Food Formulations</h2>
+          <p class="section-subtitle">
+            Browse through laboratory-tested and sensory-evaluated products created by food science and human nutrition students across universities.
+          </p>
+        </div>
+        <button class="btn-primary js-open-submit" id="catalogSubmitBtn" title="Innovator login required">
+          <span>🔒</span> Innovator Submission
+        </button>
+      </div>
+
+      <!-- Filter & Search Toolbar -->
+      <div class="catalog-toolbar">
+        <div class="toolbar-top-row">
+          <div class="search-input-wrapper">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchProjectsInput" class="search-input" placeholder="Search by product name, ingredient, university, or technology...">
+          </div>
+
+          <div class="toolbar-filters">
+            <select id="filterUniversity" class="select-filter" aria-label="Filter by University">
+              <!-- Populated dynamically -->
+            </select>
+
+            <select id="filterSort" class="select-filter" aria-label="Sort innovations">
+              <option value="upvotes">🔥 Most Endorsed (Peer Upvotes)</option>
+              <option value="sensory">⭐ Highest Sensory Score</option>
+              <option value="sustainability">🌱 Highest Eco-Rating</option>
+              <option value="title">🔤 Alphabetical (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="categoryChips" class="category-chips">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #64748b; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+          <span id="catalogResultsCount">Loading innovations...</span>
+          <span style="font-size: 0.8rem;">Click any card to inspect laboratory nutrition facts, team roster &amp; dissertation</span>
+        </div>
+      </div>
+
+      <!-- Main Innovations Grid -->
+      <div id="catalogProjectsGrid" class="projects-grid">
+        <!-- Rendered dynamically -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW: RESEARCH THESES & DISSERTATIONS REPOSITORY
+       ========================================================================= -->
+  <section id="thesesView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Collegiate Open-Access Research Repository</span>
+          <h2 class="section-title">Student Research Theses &amp; Dissertations Hub</h2>
+          <p class="section-subtitle">
+            An open academic platform for food science, clinical nutrition, and postharvest technology dissertations by students across partner universities. Read abstracts, inspect laboratory methodologies, download full thesis documents, and contribute peer critique.
+          </p>
+        </div>
+        <button class="btn-primary js-open-submit-thesis" id="thesesSubmitBtn" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);" title="Innovator login required">
+          <span>🔒</span> Innovator Thesis Submission
+        </button>
+      </div>
+
+      <!-- Search & Filters Toolbar -->
+      <div class="catalog-toolbar">
+        <div class="toolbar-top">
+          <div class="search-input-wrapper">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchThesesInput" class="search-input" placeholder="Search by research title, author, supervisor, keywords, or abstract...">
+          </div>
+
+          <div class="toolbar-filters">
+            <select id="filterThesesUniversity" class="select-filter" aria-label="Filter by University">
+              <!-- Populated dynamically -->
+            </select>
+
+            <select id="filterThesesSort" class="select-filter" aria-label="Sort theses">
+              <option value="comments">💬 Most Discussed (Peer Reviews)</option>
+              <option value="downloads">📥 Most Downloaded</option>
+              <option value="views">👁️ Most Viewed</option>
+              <option value="recent">⏱️ Most Recent Submissions</option>
+              <option value="title">🔤 Alphabetical (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="thesesCategoryChips" class="category-chips">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #64748b; padding-top: 8px; border-top: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px;">
+          <span id="thesesResultsCount">Loading research theses...</span>
+          <span style="font-size: 0.8rem; color: #059669; font-weight: 700;">
+            🎓 Open-Access Peer Review &bull; All Innovators &amp; Students Welcome (Verified or Unverified)
+          </span>
+        </div>
+      </div>
+
+      <!-- Theses Cards Grid -->
+      <div id="thesesGrid" class="theses-grid">
+        <!-- Rendered dynamically by renderThesesRepository in app.js -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW: PUBLIC FOOD SCIENCE COMMUNITY FEED
+       ========================================================================= -->
+  <section id="feedView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Public Food Science Education &amp; Discovery</span>
+          <h2 class="section-title">Open Food Science Feed</h2>
+          <p class="section-subtitle">
+            A public hub where student innovators share bite-sized science, kitchen chemistry, laboratory breakthroughs, and pilot plant videos. Anyone can like, repost, ask questions in comments, or message student scientists directly!
+          </p>
+        </div>
+        <button class="btn-primary js-open-create-feed-post" id="feedCreatePostBtn" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);" title="Innovator login required">
+          <span>🔒</span> Share Food Science Post
+        </button>
+      </div>
+
+      <!-- Feed Filter & Search Toolbar -->
+      <div class="catalog-toolbar">
+        <div class="toolbar-top">
+          <div class="search-input-wrapper">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchFeedInput" class="search-input" placeholder="Search posts, topics (e.g. #FoodChemistry, #FoodSafety, #Fermentation), or innovator...">
+          </div>
+
+          <div class="toolbar-filters">
+            <select id="filterFeedMedia" class="select-filter" aria-label="Filter by media type" onchange="handleFeedFilterChange()">
+              <option value="all">🎬 All Media Types</option>
+              <option value="image">📷 Photos &amp; Infographics</option>
+              <option value="video">🎥 Videos &amp; Live Demos</option>
+              <option value="text">📝 Text &amp; Science Explanations</option>
+            </select>
+
+            <select id="filterFeedSort" class="select-filter" aria-label="Sort feed posts" onchange="handleFeedFilterChange()">
+              <option value="recent">⏱️ Newest First</option>
+              <option value="likes">❤️ Most Liked</option>
+              <option value="comments">💬 Most Discussed</option>
+              <option value="reposts">🔁 Most Reposted</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="feedTopicChips" class="category-chips">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #64748b; padding-top: 8px; border-top: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px;">
+          <span id="feedResultsCount">Showing all food science posts...</span>
+          <span style="font-size: 0.8rem; color: #047857; font-weight: 700;">
+            🥑 Public Knowledge Hub &bull; Anyone can like, repost, comment, or message innovators
+          </span>
+        </div>
+      </div>
+
+      <!-- Feed Layout (Main Stream + Trending Sidebar) -->
+      <div class="feed-layout">
+        <!-- Main Feed Stream -->
+        <div id="feedPostsStream">
+          <!-- Composer Trigger Box -->
+          <div class="feed-composer-box">
+            <div style="display: flex; align-items: center; gap: 14px; flex: 1;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #059669, #0284c7); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">
+                🥑
+              </div>
+              <div style="flex: 1; background: #f1f5f9; border-radius: 9999px; padding: 12px 20px; font-size: 0.9rem; color: #64748b; cursor: pointer;" onclick="openCreateFeedPostModal()">
+                What food science discovery, recipe chemistry, or lab experiment do you want to share?
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn-outline" style="padding: 8px 14px; font-size: 0.82rem;" onclick="openCreateFeedPostModal('image')">📷 Photo</button>
+              <button type="button" class="btn-outline" style="padding: 8px 14px; font-size: 0.82rem;" onclick="openCreateFeedPostModal('video')">🎥 Video</button>
+              <button type="button" class="btn-primary js-open-create-feed-post" style="padding: 8px 16px; font-size: 0.82rem;">+ Post</button>
+            </div>
+          </div>
+
+          <!-- Feed Posts Cards Container -->
+          <div id="feedPostsContainer">
+            <!-- Rendered dynamically by renderFeed() in app.js -->
+          </div>
+        </div>
+
+        <!-- Sidebar: Trending Topics & Food Science Fact of the Day -->
+        <div class="feed-sidebar">
+          <!-- Fact of the Day Card -->
+          <div class="pillar-card" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); color: white; margin-bottom: 24px; border: none; box-shadow: 0 4px 16px rgba(6, 78, 59, 0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase;">Daily Science Fact</span>
+              <span style="font-size: 1.2rem;">💡</span>
+            </div>
+            <h4 style="font-size: 1.05rem; font-weight: 900; margin-bottom: 6px; color: white;">The Maillard Reaction</h4>
+            <p style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 12px;">
+              That golden-brown sear on toast, coffee beans, and grilled food isn't caramelization! It's a chemical reaction between reducing sugars and amino acids above 140°C that produces hundreds of complex flavor molecules.
+            </p>
+            <span style="font-size: 0.75rem; color: #a7f3d0; font-weight: 700;">— AFOSTECH Food Chemistry Chapter</span>
+          </div>
+
+          <!-- Trending Topics Card -->
+          <div class="pillar-card" style="margin-bottom: 24px;">
+            <h4 style="font-size: 1.05rem; font-weight: 900; color: var(--navy); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <span>🔥</span> Trending Food Topics
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <a href="#" onclick="filterFeedByTopic('#FoodChemistry'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 800; color: #047857; font-size: 0.85rem;">#FoodChemistry</span>
+                <span style="font-size: 0.75rem; color: #64748b;">142 posts</span>
+              </a>
+              <a href="#" onclick="filterFeedByTopic('#FermentationTech'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 800; color: #0369a1; font-size: 0.85rem;">#FermentationTech</span>
+                <span style="font-size: 0.75rem; color: #64748b;">98 posts</span>
+              </a>
+              <a href="#" onclick="filterFeedByTopic('#WasteUpcycling'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 800; color: #0f766e; font-size: 0.85rem;">#WasteUpcycling</span>
+                <span style="font-size: 0.75rem; color: #64748b;">76 posts</span>
+              </a>
+              <a href="#" onclick="filterFeedByTopic('#AlternativeProtein'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 800; color: #d97706; font-size: 0.85rem;">#AlternativeProtein</span>
+                <span style="font-size: 0.75rem; color: #64748b;">64 posts</span>
+              </a>
+              <a href="#" onclick="filterFeedByTopic('#FoodSafetyTips'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                <span style="font-weight: 800; color: #dc2626; font-size: 0.85rem;">#FoodSafetyTips</span>
+                <span style="font-size: 0.75rem; color: #64748b;">58 posts</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Direct Innovator Connect Notice -->
+          <div class="pillar-card" style="background: #f0fdf4; border: 1.5px solid #a7f3d0;">
+            <div style="font-size: 0.78rem; font-weight: 900; color: #064e3b; text-transform: uppercase; margin-bottom: 6px;">
+              ✉️ Direct Scientist Connect
+            </div>
+            <p style="font-size: 0.82rem; color: #047857; line-height: 1.5; margin-bottom: 8px;">
+              Anyone can message the student innovator who published a post! Use the <strong>"✉️ Message Innovator"</strong> button on any card to ask technical questions, request kitchen recipe advice, or discuss commercial collaboration.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW 3: UNIVERSITY LEADERBOARD (Positive Peer Competition)
+       ========================================================================= -->
+  <section id="leaderboardView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Healthy Inter-University Rivalry</span>
+          <h2 class="section-title">Inter-University Innovation Leaderboard</h2>
+          <p class="section-subtitle">
+            Encouraging positive peer competition among university departments. Points are awarded based on prototypes validated, sensory panel scores, peer upvotes, and patent applications.
+          </p>
+        </div>
+        <button class="btn-primary js-open-submit">
+          Boost Your Campus Score →
+        </button>
+      </div>
+
+      <div class="leaderboard-banner">
+        <div>
+          <h3>How the AFOSTECH Scoring Index Works</h3>
+          <p>
+            • <strong>100 Pts:</strong> Every peer-reviewed prototype submitted • <strong>20x:</strong> Trained sensory evaluation rating (out of 10) • <strong>5 Pts:</strong> Every peer endorsement upvote
+          </p>
+        </div>
+        <div>
+          <span style="background: rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 800;">
+            Live Standings (2026 Academic Year)
+          </span>
+        </div>
+      </div>
+
+      <div id="leaderboardPodium" class="podium-container">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="leaderboard-section">
+        <h3 style="font-size: 1.25rem; font-weight: 900; margin-bottom: 16px;">Campus League Table</h3>
+        <div class="leaderboard-table-wrap">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th style="width: 60px;">Rank</th>
+                <th>University Chapter &amp; Strengths</th>
+                <th>Total Points</th>
+                <th>Prototypes</th>
+                <th>Chapter Leadership</th>
+                <th style="width: 140px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW 4: INNOVATORS & BOARD OF HONOUR (Pitch Verified & Investor Connect)
+       ========================================================================= -->
+  <section id="innovatorsView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Hall of Distinction</span>
+          <h2 class="section-title">Verified Innovators &amp; Board of Honour</h2>
+          <p class="section-subtitle">
+            To earn the <strong>Verified Innovator Seal</strong> and enter the Board of Honour, students must have pitched in an official AFOSTECH competition and passed rigorous food safety, sensory, and public production clearance.
+          </p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-outline js-open-innovator-auth" id="innovatorsAuthBtn">
+            🎓 Innovator Login / Sign Up
+          </button>
+          <button class="btn-primary js-open-submit">
+            + Submit For Verification
+          </button>
+        </div>
+      </div>
+
+      <!-- Explanatory Banner -->
+      <div style="background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 50%, #f0fdf4 100%); border: 1.5px solid #fde68a; border-radius: 16px; padding: 22px 28px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h4 style="font-size: 1.15rem; font-weight: 900; color: #78350f; margin-bottom: 4px;">
+            💼 For Food Industry Investors &amp; Venture Scouts
+          </h4>
+          <p style="font-size: 0.9rem; color: #92400e; max-width: 720px; line-height: 1.5;">
+            Every student innovator below has attached their academic CV and stated their exact <strong>commercialization asks</strong> (seed capital, pilot manufacturing machinery, or regulatory testing). Click <em>"Open Investor Conversation"</em> on any profile to initiate direct dialogue.
+          </p>
+        </div>
+        <span style="background: #ffffff; border: 1px solid #fcd34d; padding: 6px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 800; color: #b45309;">
+          Verified by AFOSTECH Council
+        </span>
+      </div>
+
+      <!-- Board of Honour Grid -->
+      <div id="boardOfHonourGrid" class="board-of-honour-grid">
+        <!-- Injected dynamically by app.js -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW 5: CONSORTIUM NEWS & PUBLIC BULLETINS
+       ========================================================================= -->
+  <section id="newsView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Public Information Flow</span>
+          <h2 class="section-title">Consortium News, Competitions &amp; Registration Links</h2>
+          <p class="section-subtitle">
+            Stay up to date with inter-university food innovation challenges, symposium registration links, grant calls, and student laboratory protocols.
+          </p>
+        </div>
+        <button class="btn-primary js-open-submit">
+          Register For Upcoming Pitch Cup →
+        </button>
+      </div>
+
+      <!-- News Feed Grid -->
+      <div id="newsFeedGrid" class="news-feed-grid">
+        <!-- Injected dynamically by app.js -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VIEW 6: ABOUT AFOSTECH
+       ========================================================================= -->
+  <section id="aboutView" class="section" style="display: none;">
+    <div class="container">
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Consortium Background</span>
+          <h2 class="section-title">About the Association of Food Science and Technology Students</h2>
+          <p class="section-subtitle">
+            Pioneering a unified student platform to bridge the gap between academic research, food manufacturing, and malnutrition eradication.
+          </p>
+        </div>
+        <button class="btn-primary js-open-partnership">
+          🏛️ Request Campus Partnership
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; margin-bottom: 48px;">
+        <div style="background: white; border-radius: 16px; padding: 32px; border: 1.5px solid #e2e8f0; box-shadow: var(--shadow-sm);">
+          <h3 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--navy);">Our Genesis &amp; Vision</h3>
+          <p style="color: #475569; font-size: 0.95rem; margin-bottom: 16px; line-height: 1.65;">
+            Established in 1997 at the University of Nairobi, AFOSTECH was formed when student researchers noticed a recurring issue: hundreds of brilliant food science undergraduate dissertations and prototypes ended up gathering dust on department shelves once graded.
+          </p>
+          <p style="color: #475569; font-size: 0.95rem; margin-bottom: 16px; line-height: 1.65;">
+            AFOSTECH connects university chapters across Kenya, Uganda, Ghana, Nigeria, and South Africa into a singular interactive network. By democratizing product showcases, students receive peer critique, validate their formulations with international peers, and prepare their inventions for real commercial launch.
+          </p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <span style="background: #ecfdf5; color: #047857; padding: 6px 14px; border-radius: 9999px; font-weight: 800; font-size: 0.8rem;">
+              ✓ Inter-University Student Governance
+            </span>
+            <span style="background: #e0f2fe; color: #0369a1; padding: 6px 14px; border-radius: 9999px; font-weight: 800; font-size: 0.8rem;">
+              ✓ Standardized Sensory Panels
+            </span>
+            <span style="background: #fef3c7; color: #b45309; padding: 6px 14px; border-radius: 9999px; font-weight: 800; font-size: 0.8rem;">
+              ✓ Industry Incubation Links
+            </span>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border-radius: 16px; padding: 32px; border: 1.5px solid #e2e8f0;">
+          <h3 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--navy);">Why Positive Peer Competition?</h3>
+          <p style="color: #475569; font-size: 0.92rem; margin-bottom: 14px; line-height: 1.6;">
+            Competition breeds excellence. When JKUAT students see the University of Nairobi pioneering ambient-stable camel milk ferments, it inspires them to refine their microalgae wafers. When Makerere introduces chitosan mango film, KNUST responds with Bambara groundnut hydrocolloids.
+          </p>
+          <p style="color: #475569; font-size: 0.92rem; line-height: 1.6;">
+            This positive rivalry elevates the entire continent's food technological competence, replacing isolated study with high-caliber academic banter and collaboration.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div>
+          <span class="section-tag">Campus Network</span>
+          <h3 class="section-title">Active University Chapters</h3>
+        </div>
+      </div>
+
+      <div id="aboutUniversitiesGrid" class="pillars-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Institutional Affiliation Call to Action (Confidential Review handled via Staff Portal) -->
+      <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 1.5px solid #a7f3d0; border-radius: 16px; padding: 28px 32px; margin-top: 48px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+        <div style="max-width: 640px;">
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #047857; letter-spacing: 0.8px;">
+            Institutional Membership &amp; Chapter Expansion
+          </span>
+          <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--navy); margin-top: 4px; margin-bottom: 8px;">
+            Affiliate Your University Department with AFOSTECH
+          </h3>
+          <p style="font-size: 0.88rem; color: #475569; line-height: 1.55;">
+            Are you a Dean, Head of Department, or Faculty Representative in Food Science, Clinical Nutrition, or Food Engineering? Submit a formal partnership request with your authentic university email to affiliate your campus chapter, empower students to showcase innovations, and join inter-collegiate competitions.
+          </p>
+          <div style="font-size: 0.78rem; color: #64748b; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>🔒</span>
+            <em>Confidentiality Notice: Letters of intent, dean correspondence, and partnership vetting are processed confidentially and accessible only to authorized AFOSTECH officials via the Staff Portal.</em>
+          </div>
+        </div>
+        <button class="btn-primary js-open-partnership" style="padding: 12px 24px; font-size: 0.92rem; background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none; box-shadow: 0 4px 12px rgba(5,150,105,0.25);">
+          🏛️ Request Campus Partnership →
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       MODAL 1: PROJECT DETAIL & RESEARCH TEAM PROFILE
+       ========================================================================= -->
+  <div id="projectDetailModal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary); letter-spacing: 1px;">
+            Food Innovation Profile &amp; Research Team
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Prototype Specifications &amp; Student Authors
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div id="projectDetailModalBody" class="modal-content">
+        <!-- Injected dynamically by openProjectDetail in app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 2: SUBMIT INNOVATION (With Admission No., Team Roster & Dissertation)
+       ========================================================================= -->
+  <div id="submitProjectModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 720px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary); letter-spacing: 1px;">
+            Student Submission Portal
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Feature Your Food Innovation
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="projectSubmissionForm" class="modal-content">
+        <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 20px;">
+          Showcase your laboratory prototype. Provide your authentic student admission number, project dissertation thesis, and research team members. Your submission immediately earns <strong>100 points</strong> for your campus!
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="subTitle">Product / Innovation Name *</label>
+          <input type="text" id="subTitle" class="form-control" placeholder="e.g. BioCassava: Vitamin A Enriched Extruded Crisp" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subTagline">Tagline / Short Pitch *</label>
+          <input type="text" id="subTagline" class="form-control" placeholder="e.g. Nutrient-dense, shelf-stable snack targeting school child malnutrition." required>
+        </div>
+
+        <!-- Row: University & Admission No. placed right next to each other -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="subUniversity">Your University Chapter *</label>
+            <select id="subUniversity" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subLeadAdmissionNo">Student Admission No. *</label>
+            <input type="text" id="subLeadAdmissionNo" class="form-control" placeholder="e.g. AG211-0452/2022 or 20/U/5120/EVE" required>
+          </div>
+        </div>
+
+        <!-- Institutional Verification Dispatch Notice Banner -->
+        
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="subCategory">Product Category *</label>
+            <select id="subCategory" class="form-control" required>
+              <option value="functional">Functional Foods &amp; Beverages</option>
+              <option value="biofortified">Biofortification &amp; Clinical Nutrition</option>
+              <option value="packaging">Eco-Packaging &amp; Waste Upcycling</option>
+              <option value="fermentation">Fermentation &amp; Probiotics</option>
+              <option value="alt-protein">Alternative Proteins &amp; Future Foods</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subAuthorName">Lead Student Author *</label>
+            <input type="text" id="subAuthorName" class="form-control" placeholder="e.g. Grace Mwangi" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subAuthorRole">Lead Author Role / Degree</label>
+          <input type="text" id="subAuthorRole" class="form-control" placeholder="e.g. Team Lead / Finalist, B.Sc. Food Science &amp; Tech">
+        </div>
+
+        
+        <!-- Product Prototype Photo / Actual Image Upload & Editor Spot -->
+        <div class="form-group" style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 16px;">
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 800; color: #0f172a;">🖼️ Actual Product Image / Lab Prototype Photo *</span>
+            <span style="font-size: 0.74rem; color: #059669; font-weight: 700;">PNG, JPG, SVG, WebP</span>
+          </label>
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+            <label class="btn-outline" style="padding: 6px 12px; font-size: 0.78rem; cursor: pointer; background: #ffffff; display: inline-flex; align-items: center; gap: 4px;">
+              📁 Upload Product Photo
+              <input type="file" id="subProductImageFile" accept="image/*" style="display: none;" onchange="handleSubProductImageUpload(this)">
+            </label>
+            <span style="font-size: 0.78rem; color: #64748b;">or select prototype preset:</span>
+            <select id="subProductImagePreset" class="form-control" style="width: auto; padding: 5px 8px; font-size: 0.78rem;" onchange="applySubProductImagePreset(this.value)">
+              <option value="">-- Choose Prototype Preset --</option>
+              <option value="assets/spirocracker.svg">🍪 SpiroCracker™ Wafer Crisp</option>
+              <option value="assets/mobiyog.svg">🐪 MobiYog Probiotic Camel Ferment</option>
+              <option value="assets/biochitowrap.svg">🥭 BioChito Mango Biopolymer Wrap</option>
+              <option value="assets/progrub.svg">🦗 ProGrub™ Insect Protein Meal</option>
+              <option value="assets/enzibrew.svg">🌾 EnziBrew Sorghum Beverage</option>
+              <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Trial</option>
+              <option value="assets/feed_bioplastic.svg">🍓 Strawberry Shelf-Life Film</option>
+            </select>
+          </div>
+          <!-- Preview Box with Direct Edit Shortcut -->
+          <div id="subProductImagePreviewBox" style="display: flex; align-items: center; gap: 14px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <img id="subProductImageThumb" src="assets/spirocracker.svg" alt="Product Prototype" style="width: 72px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc;">
+            <div style="flex: 1;">
+              <strong id="subProductImageFileName" style="font-size: 0.84rem; color: #0f172a; display: block;">Default Formulation Visual</strong>
+              <span style="font-size: 0.74rem; color: #64748b;">Ready to showcase in catalog. Click edit to rotate, crop, zoom, or enhance lighting!</span>
+            </div>
+            <button type="button" class="btn-outline" style="padding: 5px 12px; font-size: 0.76rem; font-weight: 700; border-color: #059669; color: #065f46;" onclick="openImageEditorForSubmission()">
+              ✏️ Edit Photo &amp; Adjust
+            </button>
+          </div>
+          <input type="hidden" id="subProductImageUrl" value="assets/spirocracker.svg">
+        </div>
+
+        <!-- Dissertation Document Upload Spot -->
+        <div class="form-group" style="background: #f0fdf4; border: 1.5px dashed #a7f3d0; border-radius: 10px; padding: 14px;">
+          <label class="form-label" for="subDissertationFile" style="color: #065f46; display: flex; justify-content: space-between;">
+            <span>📄 Project Dissertation / Research Thesis Document *</span>
+            <span style="font-size: 0.74rem; color: #059669;">PDF or DOCX (Max 15MB)</span>
+          </label>
+          <input type="file" id="subDissertationFile" class="form-control" accept=".pdf,.doc,.docx" style="background: white;">
+          <span style="font-size: 0.74rem; color: #64748b; margin-top: 4px; display: block;">
+            Used by AFOSTECH Standards Board to verify formulation methodology and nutritional laboratory results.
+          </span>
+        </div>
+
+        <!-- Team Members Builder Feature -->
+        <div class="form-group" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+          <label class="form-label" style="display: flex; justify-content: space-between;">
+            <span>👥 Additional Project Team Members</span>
+            <span style="font-size: 0.74rem; color: #64748b;">Add all student researchers on this project</span>
+          </label>
+
+          <div id="teamMembersBufferList" style="margin-bottom: 12px;"></div>
+
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: center;">
+            <input type="text" id="newMemberName" class="form-control" placeholder="Member Name" style="padding: 7px 10px; font-size: 0.82rem;">
+            <input type="text" id="newMemberAdm" class="form-control" placeholder="Admission No." style="padding: 7px 10px; font-size: 0.82rem;">
+            <input type="text" id="newMemberRole" class="form-control" placeholder="Project Role" style="padding: 7px 10px; font-size: 0.82rem;">
+            <button type="button" id="btnAddTeamMember" class="btn-primary" style="padding: 7px 14px; font-size: 0.82rem; white-space: nowrap;">
+              + Add
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subIngredients">Raw Ingredients &amp; Bio-Resources (Comma separated)</label>
+          <input type="text" id="subIngredients" class="form-control" placeholder="e.g. Biofortified Cassava Flour, Chia Seed Gum, Moringa Leaf Powder">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subSummary">Scientific Abstract &amp; Nutritional Breakthrough *</label>
+          <textarea id="subSummary" class="form-control" rows="3" placeholder="Detail your laboratory methodology, formulation techniques, sensory analysis, and problem solved..." required></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary">Publish to Consortium Showcase →</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 3: REQUEST PARTNERSHIP (Authentic University Email Required)
+       ========================================================================= -->
+  <div id="partnershipModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 650px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary);">
+            Campus Affiliation Application
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Request University Partnership
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="partnershipRequestForm" class="modal-content">
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+          <strong style="color: #065f46; font-size: 0.88rem;">Institutional Email Requirement:</strong>
+          <p style="font-size: 0.82rem; color: #047857; line-height: 1.45; margin-top: 3px;">
+            To maintain academic authenticity, partnership requests must be submitted with an official institutional domain email (e.g., <code>dean.foodscience@univ.ac.ke</code> or <code>dept@univ.edu</code>). This request will be forwarded directly to the organization's official email (<strong>partnerships@afostech-students.org</strong>) for review and follow-up.
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="partUnivName">Full University Name *</label>
+          <input type="text" id="partUnivName" class="form-control" placeholder="e.g. University of Cape Coast" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="partCountry">Country *</label>
+            <input type="text" id="partCountry" class="form-control" placeholder="e.g. Ghana" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="partContactPerson">Dean / Head of Food Science Department *</label>
+            <input type="text" id="partContactPerson" class="form-control" placeholder="e.g. Prof. Joseph Mensah" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="partOfficialEmail">
+              Official University Institutional Email *
+            </label>
+            <input type="email" id="partOfficialEmail" class="form-control" placeholder="e.g. foodscience@ucc.edu.gh" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="partEnrollment">Est. Food Science Student Enrollment</label>
+            <input type="text" id="partEnrollment" class="form-control" placeholder="e.g. 350 Students">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="partLetter">Statement of Intent &amp; Faculty Research Focus *</label>
+          <textarea id="partLetter" class="form-control" rows="3" placeholder="Briefly detail your food science labs, research areas, and why your campus wishes to join the AFOSTECH movement..." required></textarea>
+        </div>
+
+        <!-- Official Request Letter Document File Upload Spot -->
+        <div class="form-group">
+          <label class="form-label" for="partLetterFile">
+            Official Request Letter Document File (PDF / DOCX on University Letterhead) *
+          </label>
+          <div class="file-upload-zone" id="partLetterFileDropzone" style="border: 2px dashed #10b981; border-radius: 10px; padding: 18px 16px; text-align: center; background: #f0fdf4; cursor: pointer; transition: all 0.2s ease;" onclick="document.getElementById('partLetterFile').click();">
+            <input type="file" id="partLetterFile" accept=".pdf,.doc,.docx" style="display: none;" onchange="handlePartLetterFileSelect(this)">
+            <span style="font-size: 2rem; display: block; margin-bottom: 6px;">📑</span>
+            <strong style="color: #065f46; font-size: 0.92rem; display: block;">Attach Official Signed &amp; Stamped Letter of Intent</strong>
+            <span style="font-size: 0.78rem; color: #047857; display: block; margin-top: 2px;">Click to browse or upload official institutional letterhead (PDF, DOC, DOCX up to 15MB)</span>
+            <span style="font-size: 0.72rem; color: #64748b; display: block; margin-top: 4px;">This official document will be securely accessible and readable by AFOSTECH staff in the Secretariat Portal</span>
+          </div>
+          <div id="partLetterFileInfo" style="display: none; margin-top: 10px; font-size: 0.84rem; color: #065f46; background: #ecfdf5; padding: 10px 14px; border-radius: 8px; border: 1px solid #a7f3d0; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.2rem;">📄</span>
+              <div>
+                <strong id="partLetterFileName" style="display: block; color: #064e3b; font-size: 0.85rem;">Official_Request_Letter.pdf</strong>
+                <span id="partLetterFileSize" style="color: #64748b; font-size: 0.74rem;">(1.8 MB)</span>
+              </div>
+            </div>
+            <button type="button" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.78rem; font-weight: 700; padding: 4px 8px;" onclick="clearPartLetterFile(event)">✕ Remove File</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary">
+            Submit Partnership Request to Official Email →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 4: STAFF OFFICIAL LOGIN
+       ========================================================================= -->
+  <div id="staffLoginModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #0284c7;">
+            Restricted Staff Area
+          </span>
+          <h3 style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
+            AFOSTECH Officials Login
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="staffLoginForm" class="modal-content">
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 18px;">
+          Only authorized organization officials have access to review partnerships, verify student innovators, and organize competitions.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="staffEmail">Official Email</label>
+          <input type="email" id="staffEmail" class="form-control" placeholder="admin@afostech-students.org" value="admin@afostech-students.org" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staffPassword">Official Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="staffPassword" class="form-control" value="admin123" placeholder="Enter official access key" required>
+            <button type="button" class="btn-password-toggle" data-target="staffPassword" aria-label="Show password" title="Show password">
+              <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg class="eye-icon eye-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+          <button type="button" class="btn-outline" onclick="staffDemoQuickLogin()">
+            ⚡ 1-Click Demo Official
+          </button>
+          <button type="submit" class="btn-primary">
+            Sign In to Staff Portal →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 5: STAFF OFFICIAL PORTAL & CONTROL CENTER
+       ========================================================================= -->
+  <div id="staffPortalModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 900px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #059669;">
+            Administrative Secretariat
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Consortium Official Control Center
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div id="staffPortalModalBody" class="modal-content">
+        <!-- Rendered dynamically by renderStaffPortalContents in app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 6: STUDENT INNOVATOR AUTH (SIGN IN & REGISTRATION / JOIN AFOSTECH)
+       ========================================================================= -->
+  <div id="innovatorAuthModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 540px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary);">
+            Student Innovator Portal
+          </span>
+          <h3 id="innAuthModalTitle" style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
+            Innovator Sign In / Join AFOSTECH
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-content">
+        <!-- Dual Tab Switcher -->
+        <div class="auth-tab-nav">
+          <button type="button" class="auth-tab-btn active" id="tabInnSignInBtn" onclick="switchInnovatorAuthTab('signin')">
+            🔑 Sign In (Existing Member)
+          </button>
+          <button type="button" class="auth-tab-btn" id="tabInnSignUpBtn" onclick="switchInnovatorAuthTab('signup')">
+            ✨ Join AFOSTECH (Register)
+          </button>
+        </div>
+
+        <!-- TAB 1: SIGN IN PANE (For verified/existing students) -->
+        <div id="innSignInPane" class="auth-pane active">
+          <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 18px;">
+            Sign in to your authenticated profile to manage your academic CV, track pitch verification, and submit food innovations and research theses.
+          </p>
+
+          <form id="innovatorSignInForm">
+            <div class="form-group">
+              <label class="form-label" for="innSignInId">Student Email or Admission No. *</label>
+              <input type="text" id="innSignInId" class="form-control" placeholder="e.g. f.wanjiru@students.jkuat.ac.ke or AG211-0452/2022" value="f.wanjiru@students.jkuat.ac.ke" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="innSignInPassword">Innovator Password *</label>
+              <div class="password-wrapper">
+                <input type="password" id="innSignInPassword" class="form-control" placeholder="Enter portal password" value="innovator2026" required>
+                <button type="button" class="btn-password-toggle" data-target="innSignInPassword" aria-label="Show password" title="Show password">
+                  <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <svg class="eye-icon eye-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Demo Accounts for Seamless Testing -->
+            <div style="margin-bottom: 20px;">
+              <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
+                ⚡ 1-Click Demo Verified Innovators:
+              </span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('f.wanjiru@students.jkuat.ac.ke')">
+                  🌾 Faith Wanjiru (JKUAT)
+                </button>
+                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('amina.hassan@students.uonbi.ac.ke')">
+                  🥛 Amina Hassan (UoN)
+                </button>
+                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('g.nabirye@mak.ac.ug')">
+                  🧪 Grace Nabirye (Makerere)
+                </button>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+              <button type="button" class="btn-outline" onclick="switchInnovatorAuthTab('signup')" style="font-size: 0.82rem;">
+                New Student? Register →
+              </button>
+              <button type="submit" class="btn-primary">
+                Sign In to Innovator Portal →
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: SIGN UP / REGISTER TO JOIN AFOSTECH PANE -->
+        <div id="innSignUpPane" class="auth-pane">
+          <div class="auth-protocol-box">
+            <span style="font-size: 1.5rem; line-height: 1;">🏛️</span>
+            <div>
+              <div style="font-weight: 900; margin-bottom: 2px;">Campus Authenticity Verification Protocol</div>
+              <p style="margin: 0; line-height: 1.45;">
+                When you submit your registration, an automated verification prompt email is dispatched to your university registrar. Once your campus confirms your enrollment authenticity, you automatically join AFOSTECH and gain full privileges to submit innovations and research.
+              </p>
+            </div>
+          </div>
+
+          <form id="innovatorSignUpForm">
+            <div class="form-group">
+              <label class="form-label" for="innSignUpName">Full Student Name *</label>
+              <input type="text" id="innSignUpName" class="form-control" placeholder="e.g. Dennis Kiprono" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="innSignUpEmail">Student Institutional Email *</label>
+              <input type="email" id="innSignUpEmail" class="form-control" placeholder="e.g. d.kiprono@students.egerton.ac.ke" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="innSignUpAdm">Admission No. *</label>
+                <input type="text" id="innSignUpAdm" class="form-control" placeholder="e.g. AG14/10492/23" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="innSignUpUniversity">University Chapter *</label>
+                <select id="innSignUpUniversity" class="form-control" required></select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="innSignUpDegree">Degree / Academic Program *</label>
+                <input type="text" id="innSignUpDegree" class="form-control" placeholder="e.g. B.Sc. Food Science & Technology" value="B.Sc. Food Science & Technology" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="innSignUpYear">Year of Study *</label>
+                <select id="innSignUpYear" class="form-control" required>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year" selected>3rd Year</option>
+                  <option value="Final Year">Final Year</option>
+                  <option value="Postgraduate (M.Sc./Ph.D.)">Postgraduate (M.Sc./Ph.D.)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="innSignUpPassword">Create Account Password *</label>
+              <div class="password-wrapper">
+                <input type="password" id="innSignUpPassword" class="form-control" placeholder="Create a secure portal password" value="student2026" required>
+                <button type="button" class="btn-password-toggle" data-target="innSignUpPassword" aria-label="Show password" title="Show password">
+                  <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <svg class="eye-icon eye-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+              <button type="button" class="btn-outline" onclick="switchInnovatorAuthTab('signin')" style="font-size: 0.82rem;">
+                ← Already Registered? Sign In
+              </button>
+              <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);">
+                Join AFOSTECH &amp; Dispatch Prompt →
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 7: STUDENT INNOVATOR DASHBOARD (Profile, CV, Investor Asks)
+       ========================================================================= -->
+  <div id="innovatorDashboardModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 760px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary);">
+            Student Workspace
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Innovator Commercialization Desk
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div id="innovatorDashboardBody" class="modal-content">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 8: INVESTOR CONVERSATION INQUIRY
+       ========================================================================= -->
+  <div id="investorInquiryModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #0284c7;">
+            Commercialization Dialogue
+          </span>
+          <h3 style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
+            Open Investor Conversation
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="investorInquiryForm" class="modal-content">
+        <input type="hidden" id="investorTargetId">
+        <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.88rem; color: #0369a1;">
+          Inquiry regarding: <strong id="investorTargetInnovator">Student Innovator</strong>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="invOrgName">Your Investment Firm / Corporate Entity *</label>
+          <input type="text" id="invOrgName" class="form-control" placeholder="e.g. Africa Agri-Food Ventures or Nestle R&amp;D" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="invEmail">Official Contact Email *</label>
+          <input type="email" id="invEmail" class="form-control" placeholder="investor@agrifood.vc" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="invProposal">Conversation Opening / Support Offered *</label>
+          <textarea id="invProposal" class="form-control" rows="3" placeholder="Detail your interest (seed funding, pilot factory machinery, distribution contract, or mentorship)..." required></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
+            Dispatch Message to Innovator →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 9: READ REQUEST LETTER MODAL (Official Institutional Dispatch)
+       ========================================================================= -->
+  <div id="partnershipLetterModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 820px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #0284c7;">
+            Official Institutional Dispatch
+          </span>
+          <h3 style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
+            Partnership Request Letter
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div id="partnershipLetterBody" class="modal-content">
+        <!-- Injected dynamically by openRequestLetter in app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 9: INSTITUTIONAL VERIFICATION PROMPT EMAIL VIEWER
+       ========================================================================= -->
+  
+  <!-- =========================================================================
+       MODAL 10: SUBMIT RESEARCH THESIS (Open to All Student Innovators)
+       ========================================================================= -->
+  <div id="submitThesisModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 760px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #059669; letter-spacing: 1px;">
+            Student Research Repository &bull; Open Access
+          </span>
+          <h3 style="font-size: 1.4rem; font-weight: 900; margin-top: 2px;">
+            Submit Your Research Thesis / Dissertation
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="thesisSubmissionForm" class="modal-content">
+        <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 20px;">
+          All food science and nutrition students (whether verified on the Board of Honour or submitting for the first time) are encouraged to publish their research theses. Fellow students, faculty, and industry leaders can read your abstract, download your full document, and provide peer critique.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="thesisSubTitle">Research Thesis / Dissertation Title *</label>
+          <input type="text" id="thesisSubTitle" class="form-control" placeholder="e.g. Optimization of Vacuum-Baking Protocols for Provitamin-A Carotenoid Retention" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="thesisSubTagline">One-Sentence Tagline / Executive Summary *</label>
+          <input type="text" id="thesisSubTagline" class="form-control" placeholder="e.g. Overcoming thermal beta-carotene degradation in school feeding biscuits using Spirulina." required>
+        </div>
+
+        <!-- Row: University & Admission No. with real-time verification note -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="thesisSubUniversity">Your University Chapter *</label>
+            <select id="thesisSubUniversity" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="thesisSubAdmissionNo">
+              Student Admission No. * <span style="font-size: 0.72rem; color: var(--primary);">(Determines authenticity in university records)</span>
+            </label>
+            <input type="text" id="thesisSubAdmissionNo" class="form-control" placeholder="e.g. AG211-0452/2022 or 20/U/5120/EVE" required>
+          </div>
+        </div>
+
+        <!-- Institutional Verification Notice Banner for Thesis -->
+        
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="thesisSubAuthorName">Lead Student Author *</label>
+            <input type="text" id="thesisSubAuthorName" class="form-control" placeholder="e.g. Faith Wanjiru" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="thesisSubDegree">Degree Program *</label>
+            <input type="text" id="thesisSubDegree" class="form-control" placeholder="e.g. B.Sc. Food Science & Postharvest Technology" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="thesisSubCategory">Research Pillar / Category *</label>
+            <select id="thesisSubCategory" class="form-control" required>
+              <option value="biofortified">Biofortification &amp; Clinical Nutrition</option>
+              <option value="functional">Functional Foods &amp; Bioactives</option>
+              <option value="fermentation">Microbiology &amp; Fermentation Tech</option>
+              <option value="packaging">Eco-Packaging &amp; Biopolymers</option>
+              <option value="alt-protein">Alternative Proteins &amp; Future Foods</option>
+              <option value="postharvest">Postharvest Technology &amp; Quality</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="thesisSubSupervisors">Academic Supervisor(s)</label>
+            <input type="text" id="thesisSubSupervisors" class="form-control" placeholder="e.g. Prof. Anselimo Makokha & Dr. Willis Owino">
+          </div>
+        </div>
+
+        <!-- Upload Full Thesis Document Spot -->
+        <div class="form-group" style="background: #f0fdf4; border: 1.5px dashed #a7f3d0; border-radius: 10px; padding: 14px;">
+          <label class="form-label" for="thesisSubFile" style="color: #065f46; display: flex; justify-content: space-between;">
+            <span>📄 Full Research Thesis / Dissertation Document *</span>
+            <span style="font-size: 0.74rem; color: #059669;">PDF or DOCX (Max 25MB)</span>
+          </label>
+          <input type="file" id="thesisSubFile" class="form-control" accept=".pdf,.doc,.docx" style="background: white;">
+          <span style="font-size: 0.74rem; color: #64748b; margin-top: 4px; display: block;">
+            The complete dissertation document will be publicly viewable and downloadable by peers and researchers across universities.
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="thesisSubKeywords">Keywords / Analytical Techniques (Comma separated)</label>
+          <input type="text" id="thesisSubKeywords" class="form-control" placeholder="e.g. Beta-Carotene, HPLC, Vacuum Baking, Sensory Hedonics, Starch Rheology">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="thesisSubAbstract">Comprehensive Abstract &amp; Research Summary *</label>
+          <textarea id="thesisSubAbstract" class="form-control" rows="5" placeholder="Detail the background, problem statement, laboratory methodology (treatments, analytical equipment, sensory tests), key findings, and practical applications for food industry..." required></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);">
+            Publish Research Thesis to Repository →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 11: THESIS DETAIL, SUMMARY, DOCUMENT VIEWER & PEER COMMENTS
+       ========================================================================= -->
+  <div id="thesisDetailModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 900px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #059669; letter-spacing: 1px;">
+            Academic Research Thesis &bull; Open Access Repository
+          </span>
+          <h3 id="thesisModalTitleHeader" style="font-size: 1.3rem; font-weight: 900; margin-top: 2px; line-height: 1.3;">
+            Research Dissertation
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div id="thesisDetailModalBody" class="modal-content">
+        <!-- Rendered dynamically by openThesisDetail in app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 12: TRY PRODUCT - ONLINE ORDERING, FREIGHT LOGISTICS & LOCAL STOCKISTS
+       ========================================================================= -->
+  <div id="tryProductModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 880px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); color: white;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img id="tryModalProductImg" src="assets/spirocracker.svg" alt="Product Prototype" style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: white; padding: 2px; border: 2px solid #34d399;">
+          <div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #a7f3d0; letter-spacing: 1px;">
+              🛒 AFOSTECH Commercialization &bull; Direct-to-Consumer &amp; Wholesale
+            </div>
+            <h3 id="tryModalProductTitle" style="font-size: 1.3rem; font-weight: 900; color: white; margin-top: 2px; line-height: 1.2;">
+              Try Product Prototype
+            </h3>
+            <div id="tryModalOriginBadge" style="font-size: 0.78rem; color: #d1fae5; margin-top: 2px;">
+              Formulated by JKUAT Innovators (Kenya)
+            </div>
+          </div>
+        </div>
+        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-content" style="padding: 24px;">
+        <!-- Dual Tab Switcher -->
+        <div class="try-modal-tabs">
+          <button id="tryTabBtnOrder" class="try-tab-btn active" onclick="switchTryProductTab('order')">
+            🚚 Order Online &amp; Ship to Me
+          </button>
+          <button id="tryTabBtnStockists" class="try-tab-btn" onclick="switchTryProductTab('stockists')">
+            🏪 Nearest Stores &amp; Campus Outlets
+          </button>
+        </div>
+
+        <!-- TAB 1: ORDER ONLINE & SHIPPING -->
+        <div id="tryTabContentOrder">
+          <form id="tryProductOrderForm" onsubmit="handleTryProductOrderSubmit(event)">
+            <!-- Buyer Location & Address Grid -->
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); display: flex; align-items: center; gap: 6px;">
+                  📍 Step 1: Select Your Delivery Destination
+                </h4>
+                <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Used to calculate freight rates &amp; minimum order tier</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="tryBuyerCountry">Your Country *</label>
+                  <select id="tryBuyerCountry" class="form-control" onchange="onBuyerLocationChange()" required>
+                    <option value="Kenya">Kenya (East Africa)</option>
+                    <option value="Uganda">Uganda (East Africa)</option>
+                    <option value="Ghana">Ghana (West Africa)</option>
+                    <option value="Nigeria">Nigeria (West Africa)</option>
+                    <option value="South Africa">South Africa (Southern Africa)</option>
+                    <option value="Tanzania">Tanzania (East Africa)</option>
+                    <option value="Rwanda">Rwanda (East Africa)</option>
+                    <option value="Ethiopia">Ethiopia (Horn of Africa)</option>
+                    <option value="United States">United States (International Air Freight)</option>
+                    <option value="United Kingdom">United Kingdom (International Air Freight)</option>
+                    <option value="Other International">Other International Destination</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="tryBuyerCity">City / Town *</label>
+                  <input type="text" id="tryBuyerCity" class="form-control" placeholder="e.g. Nairobi, Kampala, Kumasi, Lagos..." value="Nairobi" oninput="onBuyerLocationChange()" required>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label" for="tryBuyerAddress">Physical Delivery Address / Campus Drop-off Point *</label>
+                <input type="text" id="tryBuyerAddress" class="form-control" placeholder="Street, Building, Apartment or University Hall of Residence" required>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="tryBuyerName">Your Full Name *</label>
+                  <input type="text" id="tryBuyerName" class="form-control" placeholder="Dr. / Prof. / Mr. / Ms." required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="tryBuyerEmail">Email Address *</label>
+                  <input type="email" id="tryBuyerEmail" class="form-control" placeholder="For tracking waybill & receipt" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="tryBuyerPhone">Phone Number (with country code) *</label>
+                  <input type="tel" id="tryBuyerPhone" class="form-control" placeholder="+254 700 000000" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Cross-Border Logistics Notification Banner -->
+            <div id="tryCrossBorderAlert" class="cross-border-notice" style="display: none;">
+              <span style="font-size: 1.5rem;">🌍</span>
+              <div>
+                <strong style="color: #b45309; font-size: 0.9rem;">Cross-Border International Freight Order Detected</strong>
+                <p id="tryCrossBorderAlertText" style="margin-top: 2px;">
+                  The product is formulated in <strong>Kenya</strong> and you are ordering to <strong>Uganda</strong>. To ensure cross-border freight viability, sanitary phytosanitary clearance, and ambient/chilled shipping logistics, <strong>the minimum purchase is the least wholesale unit</strong>. Individual retail sample packs cannot be dispatched internationally.
+                </p>
+              </div>
+            </div>
+
+            <!-- Purchase Tier Selection -->
+            <div style="margin-bottom: 20px;">
+              <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); margin-bottom: 10px;">
+                📦 Step 2: Choose Order Tier &amp; Quantity
+              </h4>
+              <div class="tier-selection-grid">
+                <!-- Retail Single Unit Card -->
+                <div id="tierCardSingle" class="order-tier-card selected" onclick="selectOrderTier('single')">
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                      <span style="font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px;">
+                        RETAIL SAMPLE
+                      </span>
+                      <input type="radio" name="orderTierRadio" id="tryTierRadioSingle" checked>
+                    </div>
+                    <h5 id="trySingleUnitName" style="font-size: 1rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">Single Pack (150g)</h5>
+                    <p style="font-size: 0.8rem; color: #64748b; line-height: 1.4;">Ideal for sensory tasting, food tech evaluation, or personal nutrition testing.</p>
+                  </div>
+                  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: baseline;">
+                    <div id="trySingleUnitPrice" style="font-size: 1.25rem; font-weight: 900; color: #059669;">$2.00</div>
+                    <span id="trySingleDomesticBadge" style="font-size: 0.72rem; color: #047857; font-weight: 700;">Domestic Only</span>
+                  </div>
+                </div>
+
+                <!-- Wholesale Unit Card -->
+                <div id="tierCardWholesale" class="order-tier-card" onclick="selectOrderTier('wholesale')">
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                      <span style="font-size: 0.72rem; font-weight: 800; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px;">
+                        WHOLESALE BULK (MIN. EXPORT UNIT)
+                      </span>
+                      <input type="radio" name="orderTierRadio" id="tryTierRadioWholesale">
+                    </div>
+                    <h5 id="tryWholesaleUnitName" style="font-size: 1rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">Box of 24 Packs</h5>
+                    <p style="font-size: 0.8rem; color: #64748b; line-height: 1.4;">Required for international shipping, institutional cafeterias, supermarkets, or bulk distributors.</p>
+                  </div>
+                  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: baseline;">
+                    <div id="tryWholesaleUnitPrice" style="font-size: 1.25rem; font-weight: 900; color: #059669;">$40.00</div>
+                    <span style="font-size: 0.72rem; color: #b45309; font-weight: 700;">Global Freight Eligible</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quantity Selector -->
+              <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 18px;">
+                <div>
+                  <strong id="tryQtyLabel" style="font-size: 0.9rem; color: var(--navy);">Number of Units:</strong>
+                  <div id="tryQtySubtext" style="font-size: 0.78rem; color: #64748b;">Minimum 1 unit</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button type="button" class="btn-outline" style="width: 36px; height: 36px; padding: 0; font-size: 1.2rem; font-weight: 900;" onclick="updateOrderQuantity(-1)">−</button>
+                  <input type="number" id="tryOrderQty" value="1" min="1" max="100" style="width: 60px; text-align: center; font-size: 1.1rem; font-weight: 900; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px;" readonly>
+                  <button type="button" class="btn-outline" style="width: 36px; height: 36px; padding: 0; font-size: 1.2rem; font-weight: 900;" onclick="updateOrderQuantity(1)">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cost Breakdown & AFOSTECH Organization Revenue Split -->
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+              <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); margin-bottom: 12px;">
+                🧾 Step 3: Order Summary &amp; Consortium Revenue Split
+              </h4>
+
+              <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
+                <span id="trySummaryItemLabel">Subtotal (1x Unit):</span>
+                <strong id="trySummarySubtotal" style="color: var(--navy);">$2.00</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 8px;">
+                <span id="trySummaryShippingLabel">Standard Courier Shipping:</span>
+                <strong id="trySummaryShipping" style="color: var(--navy);">$2.50</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 900; border-top: 1.5px dashed #cbd5e1; padding-top: 10px; margin-bottom: 14px;">
+                <span>Total Payable:</span>
+                <span id="trySummaryTotal" style="color: #059669;">$4.50</span>
+              </div>
+
+              <!-- AFOSTECH Institutional Revenue Transparency Card -->
+              <div class="revenue-split-bar-wrap">
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; margin-bottom: 6px;">
+                  <span style="color: #065f46;">👨‍🔬 85% Student Innovator Lab Fund (<span id="trySplitStudent">$1.70</span>)</span>
+                  <span style="color: #0369a1;">🏛️ 15% AFOSTECH Commercialization (<span id="trySplitOrg">$0.30</span>)</span>
+                </div>
+                <div style="height: 10px; width: 100%; background: #e2e8f0; border-radius: 9999px; overflow: hidden; display: flex;">
+                  <div style="width: 85%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+                  <div style="width: 15%; background: linear-gradient(90deg, #0284c7, #0f172a);"></div>
+                </div>
+                <p style="font-size: 0.74rem; color: #64748b; margin-top: 8px; line-height: 1.45;">
+                  💡 <strong>Consortium Mission:</strong> AFOSTECH processes these sales as an institutional revenue generator. 85% is paid directly to the student innovators for bio-ingredient supplies and pilot scaling; 15% funds inter-university hackathon prizes and patent grants.
+                </p>
+              </div>
+            </div>
+
+            <!-- Payment Method & Confirm -->
+            <div style="margin-bottom: 24px;">
+              <label class="form-label" style="margin-bottom: 8px;">Select Payment Simulation *</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
+                  <input type="radio" name="paymentOption" value="M-Pesa / Mobile Money" checked>
+                  <span>📱 Mobile Money / M-Pesa</span>
+                </label>
+                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
+                  <input type="radio" name="paymentOption" value="Credit/Debit Card">
+                  <span>💳 Card (Visa/Mastercard)</span>
+                </label>
+                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
+                  <input type="radio" name="paymentOption" value="Pan-African Bank Transfer">
+                  <span>🏦 Pan-African EFT</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="button" class="btn-outline js-modal-close">Cancel</button>
+              <button type="submit" id="trySubmitOrderBtn" class="btn-primary" style="padding: 12px 28px; font-size: 0.95rem; background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+                💳 Confirm Order &amp; Pay ($4.50) →
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: PHYSICAL STOCKISTS & PICKUP -->
+        <div id="tryTabContentStockists" style="display: none;">
+          <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h4 style="font-size: 1rem; font-weight: 900; color: #064e3b; margin-bottom: 2px;">
+                🏪 Nearest Physical Stockists &amp; Campus Pilot Stores
+              </h4>
+              <p style="font-size: 0.82rem; color: #047857;">
+                Pick up fresh batches directly from university pilot plants or authenticated regional retail partner grocers.
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-size: 0.78rem; font-weight: 700; color: #064e3b;">Filter Location:</span>
+              <select id="tryStockistFilterCountry" class="form-control" style="font-size: 0.8rem; padding: 4px 8px; width: auto;" onchange="renderStockistsList()">
+                <option value="all">All Locations</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Uganda">Uganda</option>
+                <option value="Ghana">Ghana</option>
+                <option value="Nigeria">Nigeria</option>
+                <option value="South Africa">South Africa</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Stockists List Container -->
+          <div id="tryStockistsList">
+            <!-- Dynamically populated by renderStockistsList() -->
+          </div>
+
+          <div style="margin-top: 20px; padding: 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
+            <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 8px;">
+              Not near any of these retail stockists or located in another region?
+            </p>
+            <button class="btn-outline" style="font-size: 0.82rem; padding: 6px 16px;" onclick="switchTryProductTab('order')">
+              🚚 Switch to Online Courier &amp; Freight Shipping →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 13: ORDER CONFIRMATION & CONSORTIUM COMMERCIAL RECEIPT
+       ========================================================================= -->
+  <div id="orderConfirmationModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 680px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
+        <div>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #34d399; letter-spacing: 1px;">
+            Official Commercial Sales Receipt &bull; Consignment Waybill
+          </span>
+          <h3 style="font-size: 1.3rem; font-weight: 900; color: white; margin-top: 2px;">
+            Order Placed Successfully!
+          </h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
+      </div>
+
+      <div id="orderConfirmationModalBody" class="modal-content" style="padding: 24px;">
+        <!-- Populated dynamically by openOrderConfirmationModal(orderId) -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 14: CREATE FOOD SCIENCE POST (Restricted to Innovators)
+       ========================================================================= -->
+  <div id="createFeedPostModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 720px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #047857; letter-spacing: 0.8px;">
+            Innovator Knowledge Broadcast
+          </span>
+          <h3 class="modal-title" style="margin-top: 2px;">🥑 Share a Food Science Post</h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="createFeedPostForm" class="modal-content" onsubmit="handleCreateFeedPostSubmit(event)">
+        <!-- Author Identity Banner -->
+        <div id="feedPostAuthorBanner" style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div id="feedPostAuthorAvatar" style="width: 40px; height: 40px; border-radius: 50%; background: #059669; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem;">
+              FW
+            </div>
+            <div>
+              <div id="feedPostAuthorName" style="font-weight: 900; color: #064e3b; font-size: 0.95rem;">Faith Wanjiru</div>
+              <div id="feedPostAuthorMeta" style="font-size: 0.75rem; color: #047857;">JKUAT &bull; B.Sc. Food Science &amp; Technology</div>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Topic Category & Post Title -->
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="feedPostTopic">Topic Category *</label>
+            <select id="feedPostTopic" class="form-control" required>
+              <option value="#FoodChemistry">🧪 #FoodChemistry (Kitchen &amp; Molecular Science)</option>
+              <option value="#FoodSafetyTips">🛡️ #FoodSafetyTips (Hygiene &amp; Microbiology)</option>
+              <option value="#FermentationTech">🌾 #FermentationTech (Probiotics &amp; Brews)</option>
+              <option value="#WasteUpcycling">♻️ #WasteUpcycling (Bio-Plastics &amp; By-Products)</option>
+              <option value="#AlternativeProtein">🦗 #AlternativeProtein (Insects &amp; Plant Meats)</option>
+              <option value="#FoodProcessingTech">⚙️ #FoodProcessingTech (Pilot Plant Engineering)</option>
+              <option value="#KitchenScience">🍳 #KitchenScience (Daily Cooking Physics)</option>
+              <option value="#ClinicalNutrition">🩺 #ClinicalNutrition (Vitamins &amp; Functional Foods)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label" for="feedPostTitle">Post Title *</label>
+            <input type="text" id="feedPostTitle" class="form-control" placeholder="e.g. Why Browning Happens &amp; How Lemon Juice Stops It!" required>
+          </div>
+        </div>
+
+        <!-- Post Content Textarea -->
+        <div class="form-group">
+          <label class="form-label" for="feedPostContent">
+            Science Breakdown &amp; Explanation * (Public-Friendly Food Education)
+          </label>
+          <textarea id="feedPostContent" class="form-control" rows="5" placeholder="Explain the food science, kitchen chemistry, laboratory trial, or breakthrough so anyone can learn from it..." required></textarea>
+        </div>
+
+        <!-- Media Attachment Options -->
+        <div class="form-group">
+          <label class="form-label">Attach Media (Picture, Video Clip, or Text Only) *</label>
+          <div style="display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
+              <input type="radio" name="feedMediaType" value="image" checked onchange="toggleFeedMediaInputs('image')"> 📷 Photo / Picture
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
+              <input type="radio" name="feedMediaType" value="video" onchange="toggleFeedMediaInputs('video')"> 🎥 Video / Demo Clip
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
+              <input type="radio" name="feedMediaType" value="text" onchange="toggleFeedMediaInputs('text')"> 📝 Text Only
+            </label>
+          </div>
+
+          <!-- Dynamic Media Input Area -->
+          <div id="feedMediaInputArea" style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 16px;">
+            <div id="feedImageInputGroup">
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                <label class="btn-outline" style="padding: 7px 14px; font-size: 0.8rem; cursor: pointer; background: #ffffff;">
+                  📁 Browse Device Photo (.png, .jpg, .svg)
+                  <input type="file" id="feedPhotoFile" accept="image/*" style="display: none;" onchange="handleFeedPhotoUpload(this)">
+                </label>
+                <span style="font-size: 0.8rem; color: #64748b;">or select demo preset:</span>
+                <select id="feedPresetImageSelect" class="form-control" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" onchange="applyFeedPresetMedia(this.value, 'image')">
+                  <option value="">-- Choose Scientific Visual Preset --</option>
+                  <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Browning Trial</option>
+                  <option value="assets/feed_bioplastic.svg">🥭 Chitosan-Mango Bio-Film 14-Day Assay</option>
+                  <option value="assets/feed_bsf_protein.svg">🦗 Hermetia Protein LCA Carbon &amp; Water Analysis</option>
+                  <option value="assets/spirocracker.svg">🍪 Vacuum Baked Spirulina Wafer Crisp</option>
+                  <option value="assets/mobiyog.svg">🐪 Camel Milk Synbiotic Ferment</option>
+                </select>
+              </div>
+              <input type="text" id="feedImageUrl" class="form-control" placeholder="Or enter image URL: https://... (or assets/feed_avocado.svg)">
+            </div>
+
+            <div id="feedVideoInputGroup" style="display: none;">
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                <label class="btn-outline" style="padding: 7px 14px; font-size: 0.8rem; cursor: pointer; background: #ffffff;">
+                  📁 Browse Demo Clip (.mp4, .webm)
+                  <input type="file" id="feedVideoFile" accept="video/*" style="display: none;" onchange="handleFeedVideoUpload(this)">
+                </label>
+                <span style="font-size: 0.8rem; color: #64748b;">or select demo preset:</span>
+                <select id="feedPresetVideoSelect" class="form-control" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" onchange="applyFeedPresetMedia(this.value, 'video')">
+                  <option value="">-- Choose Pilot Demo Preset --</option>
+                  <option value="assets/feed_microfluidizer.svg">⚡ 1,800 Bar Microfluidizer Emulsification Demo (03:15)</option>
+                  <option value="assets/feed_bioplastic.svg">🍓 BioChito Antimicrobial Strawberry Test (02:40)</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" id="feedVideoUrl" class="form-control" placeholder="Video URL or player demo: assets/feed_microfluidizer.svg" style="flex: 2;">
+                <input type="text" id="feedVideoDuration" class="form-control" placeholder="Duration (e.g. 02:45)" style="flex: 1;" value="02:30">
+              </div>
+            </div>
+
+            <!-- Media Caption -->
+            <div id="feedCaptionGroup" style="margin-top: 10px;">
+              <input type="text" id="feedMediaCaption" class="form-control" placeholder="Media caption (e.g. Microscopic visualization of cell wall breakdown...)">
+            </div>
+
+            <!-- Preview Thumbnail -->
+            <div id="feedMediaPreviewBox" style="display: none; margin-top: 12px; background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="feedPreviewIcon" style="font-size: 1.4rem;">📷</span>
+                <div>
+                  <strong id="feedPreviewTitle" style="font-size: 0.82rem; color: #0f172a; display: block;">media_file.jpg</strong>
+                  <span id="feedPreviewSize" style="font-size: 0.72rem; color: #64748b;">Ready to broadcast</span>
+                </div>
+              </div>
+              <button type="button" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.75rem; font-weight: 700;" onclick="clearFeedMediaPreview()">✕ Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #059669, #0284c7);">
+            Publish to Community Feed →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 15: DIRECT MESSAGE TO INNOVATOR (Open to Anyone)
+       ========================================================================= -->
+  <div id="directMessageModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;">
+        <div>
+          <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #bae6fd; letter-spacing: 0.8px;">
+            Direct Scientific Connect
+          </span>
+          <h3 class="modal-title" style="margin-top: 2px; color: white;">✉️ Message Student Innovator</h3>
+        </div>
+        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
+      </div>
+
+      <form id="directMessageForm" class="modal-content" onsubmit="handleDirectMessageSubmit(event)">
+        <!-- Target Innovator Header -->
+        <div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;">
+          <div style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #0284c7;">Recipient:</div>
+          <div id="dmRecipientName" style="font-size: 1.05rem; font-weight: 900; color: #0c4a6e; margin-top: 2px;">Faith Wanjiru (JKUAT)</div>
+          <div id="dmPostReference" style="font-size: 0.78rem; color: #0369a1; margin-top: 2px;">
+            Regarding post: <em>"Why Cut Apples &amp; Avocados Turn Brown"</em>
+          </div>
+        </div>
+
+        <input type="hidden" id="dmPostId">
+        <input type="hidden" id="dmAuthorName">
+        <input type="hidden" id="dmUniversityId">
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="dmSenderName">Your Name / Organization *</label>
+            <input type="text" id="dmSenderName" class="form-control" placeholder="e.g. Chef Daniel / Sarah M." required>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="dmSenderContact">Your Email / Phone Number *</label>
+            <input type="text" id="dmSenderContact" class="form-control" placeholder="e.g. daniel@cuisine.com / +254..." required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="dmInquiryType">Inquiry Purpose *</label>
+          <select id="dmInquiryType" class="form-control" required>
+            <option value="General Question">❓ General Food Science / Recipe Question</option>
+            <option value="Research Collaboration">🤝 University Research Collaboration</option>
+            <option value="Commercial Inquiry">💼 Industry / Commercial Licensing Inquiry</option>
+            <option value="Media Request">🎙️ Media / Podcast / Interview Request</option>
+            <option value="Mentorship">🎓 Mentorship &amp; Academic Advice</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="dmMessageText">Your Message to the Innovator *</label>
+          <textarea id="dmMessageText" class="form-control" rows="4" placeholder="Write your question, feedback, or collaboration proposal here..." required></textarea>
+        </div>
+
+        <div style="background: #f8fafc; border-radius: 8px; padding: 10px 14px; font-size: 0.76rem; color: #64748b; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+          🔒 <strong>Confidential Student Channel:</strong> Your message will be dispatched directly to the innovator's AFOSTECH student dashboard and academic email.
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" class="btn-outline js-modal-close">Cancel</button>
+          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+            Send Message to Innovator →
+          </button>
+        </div>
+      </form>
+    </div>
+  </
+
+  <!-- =========================================================================
+       MODAL: INNOVATOR PRODUCT IMAGE STUDIO & EDITOR
+       ========================================================================= -->
+  <div id="editProductImageModal" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width: 880px;">
+      <div class="modal-header">
+        <div>
+          <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #059669; letter-spacing: 0.8px;">
+            Innovator Studio &bull; Visual Product Showcase
+          </span>
+          <h3 class="modal-title" style="margin-top: 2px;">🖼️ Upload &amp; Edit Product Image</h3>
+          <div id="imageEditorProductTitle" style="font-size: 0.84rem; color: #64748b; font-weight: 700; margin-top: 2px;">
+            Editing photo for: <strong style="color: #0f172a;">Product Formulation</strong>
+          </div>
+        </div>
+        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-content" style="padding: 20px 24px;">
+        <!-- Two-column Editor Grid: Canvas/Preview on Left, Editing Toolset on Right -->
+        <div class="image-editor-grid">
+          
+          <!-- Column 1: Live Canvas & Framing Preview -->
+          <div class="image-preview-panel">
+            <div class="canvas-wrapper" id="imageCanvasWrapper">
+              <img id="imageEditorPreviewImg" src="assets/spirocracker.svg" alt="Product Preview" class="editor-live-img">
+              <div class="image-overlay-dimensions" id="imageDimBadge">HD Preview &bull; 16:9 Banner</div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.76rem; color: #64748b;">
+              <span id="imageEditorStatusText">Live catalog presentation preview</span>
+              <button type="button" class="btn-outline" style="padding: 3px 8px; font-size: 0.72rem;" onclick="resetImageEditorControls()">
+                ↺ Reset Adjustments
+              </button>
+            </div>
+          </div>
+
+          <!-- Column 2: Upload Source & Editing Controls -->
+          <div class="image-controls-panel">
+            
+            <!-- Source Selector -->
+            <div class="editor-section">
+              <label class="editor-section-label">1. Choose Photo Source</label>
+              <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                <label class="btn-primary" style="padding: 6px 12px; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: linear-gradient(135deg, #059669, #047857);">
+                  📁 Browse Device File
+                  <input type="file" id="productImageStudioFile" accept="image/*" style="display: none;" onchange="handleStudioImageFileSelect(this)">
+                </label>
+                <select id="productImagePresetSelect" class="form-control" style="flex: 1; min-width: 160px; font-size: 0.78rem; padding: 5px 8px;" onchange="handleStudioPresetSelect(this.value)">
+                  <option value="">-- Choose Lab Preset --</option>
+                  <option value="assets/spirocracker.svg">🍪 SpiroCracker™ Wafer Crisp</option>
+                  <option value="assets/mobiyog.svg">🐪 MobiYog Probiotic Camel Ferment</option>
+                  <option value="assets/biochitowrap.svg">🥭 BioChito Mango Biopolymer Wrap</option>
+                  <option value="assets/progrub.svg">🦗 ProGrub™ Insect Protein Meal</option>
+                  <option value="assets/enzibrew.svg">🌾 EnziBrew Sorghum Beverage</option>
+                  <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Trial</option>
+                  <option value="assets/feed_bioplastic.svg">🍓 Strawberry Shelf-Life Film</option>
+                </select>
+              </div>
+              <input type="text" id="productImageStudioUrl" class="form-control" style="font-size: 0.78rem; padding: 6px 10px;" placeholder="Or paste image URL (https://...)" onchange="handleStudioUrlInput(this.value)">
+            </div>
+
+            <!-- Orientation & Framing -->
+            <div class="editor-section">
+              <label class="editor-section-label">2. Orientation &amp; Framing</label>
+              <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn-outline" style="padding: 5px 9px; font-size: 0.75rem;" onclick="rotateStudioImage(-90)">↺ -90°</button>
+                <button type="button" class="btn-outline" style="padding: 5px 9px; font-size: 0.75rem;" onclick="rotateStudioImage(90)">↻ +90°</button>
+                <button type="button" class="btn-outline" style="padding: 5px 9px; font-size: 0.75rem;" onclick="flipStudioImageHorizontal()">⇄ Flip</button>
+                <button type="button" class="btn-outline active aspect-btn" data-aspect="16/9" style="padding: 5px 9px; font-size: 0.75rem;" onclick="setStudioAspect('16/9', this)">16:9 Banner</button>
+                <button type="button" class="btn-outline aspect-btn" data-aspect="4/3" style="padding: 5px 9px; font-size: 0.75rem;" onclick="setStudioAspect('4/3', this)">4:3</button>
+                <button type="button" class="btn-outline aspect-btn" data-aspect="1/1" style="padding: 5px 9px; font-size: 0.75rem;" onclick="setStudioAspect('1/1', this)">1:1 Square</button>
+              </div>
+
+              <!-- Zoom Slider -->
+              <div class="slider-control-row">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; width: 75px;">Zoom Scale:</span>
+                <input type="range" id="studioZoomRange" min="80" max="200" value="100" style="flex: 1;" oninput="updateStudioTransform()">
+                <span id="studioZoomVal" style="font-size: 0.75rem; font-family: monospace; width: 42px; text-align: right;">100%</span>
+              </div>
+            </div>
+
+            <!-- Lighting & Enhancements -->
+            <div class="editor-section">
+              <label class="editor-section-label">3. Lighting &amp; Enhancements</label>
+              
+              <div class="slider-control-row">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; width: 75px;">Brightness:</span>
+                <input type="range" id="studioBrightness" min="60" max="150" value="100" style="flex: 1;" oninput="updateStudioFilter()">
+                <span id="studioBrightnessVal" style="font-size: 0.75rem; font-family: monospace; width: 42px; text-align: right;">100%</span>
+              </div>
+
+              <div class="slider-control-row">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; width: 75px;">Contrast:</span>
+                <input type="range" id="studioContrast" min="60" max="160" value="100" style="flex: 1;" oninput="updateStudioFilter()">
+                <span id="studioContrastVal" style="font-size: 0.75rem; font-family: monospace; width: 42px; text-align: right;">100%</span>
+              </div>
+
+              <div class="slider-control-row">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; width: 75px;">Saturation:</span>
+                <input type="range" id="studioSaturation" min="40" max="200" value="100" style="flex: 1;" oninput="updateStudioFilter()">
+                <span id="studioSaturationVal" style="font-size: 0.75rem; font-family: monospace; width: 42px; text-align: right;">100%</span>
+              </div>
+            </div>
+
+            <!-- Scientific Food Presentation Filters -->
+            <div class="editor-section">
+              <label class="editor-section-label">4. Food Presentation Tone Filter</label>
+              <div class="filter-chips-grid">
+                <button type="button" class="filter-chip-btn active" data-preset="normal" onclick="applyStudioTonePreset('normal', this)">
+                  Normal
+                </button>
+                <button type="button" class="filter-chip-btn" data-preset="vibrant" onclick="applyStudioTonePreset('vibrant', this)">
+                  🥗 Vibrant Fresh
+                </button>
+                <button type="button" class="filter-chip-btn" data-preset="studio" onclick="applyStudioTonePreset('studio', this)">
+                  💡 Studio Crisp
+                </button>
+                <button type="button" class="filter-chip-btn" data-preset="warm" onclick="applyStudioTonePreset('warm', this)">
+                  🍞 Warm Bakery
+                </button>
+                <button type="button" class="filter-chip-btn" data-preset="cool" onclick="applyStudioTonePreset('cool', this)">
+                  🧪 Lab Clarity
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Hidden canvas for rendering and exporting -->
+        <canvas id="studioExportCanvas" style="display: none;"></canvas>
+
+        <!-- Modal Footer Actions -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 10px;">
+          <span style="font-size: 0.78rem; color: #047857; font-weight: 700;">
+            ✓ Real-time preview updates live across the catalog, try product view, and your innovator profile
+          </span>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn-outline js-modal-close">Cancel</button>
+            <button type="button" class="btn-primary" id="btnSaveStudioImage" onclick="saveStudioProductImage()">
+              💾 Save &amp; Update Product Image →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <img src="assets/logo.jpg" alt="AFOSTECH Official Seal" style="height: 52px; width: 52px; border-radius: 8px; object-fit: contain; background: #ffffff; padding: 2px; border: 1.5px solid #10b981;">
+            <div>
+              <div style="font-weight: 800; font-size: 1.25rem; color: #ffffff; letter-spacing: -0.3px; line-height: 1.1;">AFOS<span style="color: #34d399;">TECH</span></div>
+              <div style="font-size: 0.75rem; color: #94a3b8;">Est. 1997 &bull; Inter-University Consortium</div>
+            </div>
+          </div>
+          <p style="font-size: 0.88rem; line-height: 1.6; color: #94a3b8; max-width: 320px;">
+            The Association of Food Science and Technology Students (AFOSTECH) is the premier inter-university consortium advancing student-led food innovation, nutrition biofortification, and agro-waste upcycling.
+          </p>
+        </div>
+
+        <div>
+          <h4>Platform Navigation</h4>
+          <ul class="footer-links">
+            <li><a href="#" onclick="switchTab('dashboard'); return false;">Consortium Dashboard</a></li>
+            <li><a href="#" onclick="switchTab('catalog'); return false;">Innovations Showcase</a></li>
+            <li><a href="#" onclick="switchTab('theses'); return false;">Research Theses Repository</a></li>
+            <li><a href="#" onclick="switchTab('feed'); return false;">Community Food Feed</a></li>
+            <li><a href="#" onclick="switchTab('leaderboard'); return false;">University Standings</a></li>
+            <li><a href="#" onclick="switchTab('innovators'); return false;">Board of Honour</a></li>
+            <li><a href="#" onclick="switchTab('news'); return false;">News &amp; Events</a></li>
+            <li><a href="#" onclick="switchTab('about'); return false;">About AFOSTECH</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>Partner Campuses</h4>
+          <ul class="footer-links" id="footerPartnerCampuses">
+            <li><a href="#" onclick="filterByUniv('jkuat'); return false;">JKUAT (Kenya)</a></li>
+            <li><a href="#" onclick="filterByUniv('uon'); return false;">Univ. of Nairobi (Kenya)</a></li>
+            <li><a href="#" onclick="filterByUniv('makerere'); return false;">Makerere Univ. (Uganda)</a></li>
+            <li><a href="#" onclick="filterByUniv('knust'); return false;">KNUST (Ghana)</a></li>
+            <li><a href="#" onclick="filterByUniv('egerton'); return false;">Egerton Univ. (Kenya)</a></li>
+            <li><a href="#" onclick="filterByUniv('ibadan'); return false;">Univ. of Ibadan (Nigeria)</a></li>
+            <li><a href="#" onclick="filterByUniv('stellenbosch'); return false;">Stellenbosch Univ. (South Africa)</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>AFOSTECH Secretariat</h4>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px;">
+            📍 Collegiate Secretariat Office: School of Food &amp; Nutritional Sciences
+          </p>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">
+            ✉️ General: secretariat@afostech-students.org
+          </p>
+          <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px;">
+            ✉️ Partnerships: partnerships@afostech-students.org
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-utility partner js-open-partnership">Request Partnership</button>
+            <button class="btn-utility js-open-staff-login">Staff Login</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          © 2026 Association of Food Science and Technology Students (AFOSTECH). All rights reserved.
+        </div>
+        <div style="color: #64748b;">
+          Pioneering Sustainable Food Formulations &amp; Healthy Peer Rivalry Across Campuses
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
