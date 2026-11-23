@@ -13,7 +13,7 @@ const AppState = {
   searchQuery: '',
   sortBy: 'upvotes',
   upvotedProjects: new Set(),
-  
+
   // Product Image Studio state
   imageEditor: {
     targetProjectId: null,
@@ -29,165 +29,172 @@ const AppState = {
     tonePreset: 'normal'
   },
 
-  // Feed state
-  feedPosts: [],
-  selectedFeedTopic: 'all',
-  selectedFeedMedia: 'all',
-  feedSearchQuery: '',
-  feedSortBy: 'recent',
-  activeFeedMediaAttachment: { type: 'image', url: 'assets/feed_avocado.svg', caption: '' },
-  innovatorMessages: [],
-
-  // Data stores
+  // Data stores (hydrated from SQLite backend via /api/bootstrap)
   projects: [],
   universities: [],
   innovators: [],
   partnershipRequests: [],
   verificationDispatches: [],
+  investorInquiries: [],
   theses: [],
-  productOrders: [],
-  activeTryProjectId: null,
-  activeTryTier: 'single',
-  activeTryQty: 1,
   news: [],
-  
+
   // Theses repository state
   selectedThesisCategory: 'all',
   selectedThesisUniversity: 'all',
   thesisSearchQuery: '',
   thesisSortBy: 'comments',
   currentActiveThesisTab: 'abstract',
-  
-  // Auth state
-  currentStaffUser: null, // Logged in official
-  currentStudentUser: null, // Logged in student innovator
-  
+
+  // Unified Role-Based Auth State (staff vs innovator determined by email role)
+  currentUser: null,
+  currentStaffUser: null,
+  currentStudentUser: null,
+  authToken: null,
+  isBackendOnline: false,
+
   // UI temporary storage
   customSubmissions: [],
   teamMembersBuffer: []
 };
 
-// Initialize Application
-document.addEventListener('DOMContentLoaded', () => {
-  loadStoredData();
+function isHttpOrigin() {
+  return window.location.protocol === 'http:' || window.location.protocol === 'https:';
+}
+
+async function apiRequest(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(AppState.authToken ? { Authorization: 'Bearer ' + AppState.authToken } : {}),
+    ...(options.headers || {})
+  };
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers
+  });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (e) {}
+  if (!res.ok) {
+    const err = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+    err.status = res.status;
+    err.code = data && data.code;
+    throw err;
+  }
+  return data;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyAuthenticatedUser(user) {
+  AppState.currentUser = user || null;
+  if (user && user.role === 'staff') {
+    AppState.currentStaffUser = {
+      ...user,
+      role: user.staffRole || 'Consortium Official'
+    };
+    AppState.currentStudentUser = null;
+  } else if (user && user.role === 'innovator') {
+    AppState.currentStudentUser = user;
+    AppState.currentStaffUser = null;
+    AppState.partnershipRequests = [];
+    AppState.verificationDispatches = [];
+  } else {
+    AppState.currentStaffUser = null;
+    AppState.currentStudentUser = null;
+    AppState.partnershipRequests = [];
+    AppState.verificationDispatches = [];
+  }
+}
+
+// Initialize Application (Always lands on Dashboard first)
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const savedToken = localStorage.getItem('afostech_auth_token');
+    if (savedToken) AppState.authToken = savedToken;
+  } catch (e) {}
   setupEventListeners();
+  await loadStoredData();
   renderApp();
 });
 
-// Load persistent data from localStorage
-function loadStoredData() {
+// Load persistent data from SQLite backend (graceful fallback to static data on file://)
+async function loadStoredData() {
+  if (isHttpOrigin()) {
+    try {
+      const data = await apiRequest('/api/bootstrap');
+      AppState.isBackendOnline = true;
+      AppState.universities = data.universities || [];
+      AppState.projects = data.projects || [];
+      AppState.theses = data.theses || [];
+      AppState.innovators = data.innovators || [];
+      AppState.news = data.news || [];
+      AppState.upvotedProjects = new Set(data.upvotedIds || []);
+
+      applyAuthenticatedUser(data.user || null);
+
+      if (data.user && data.user.role === 'staff') {
+        await fetchStaffDashboardData();
+      }
+
+      recalculateUniversityScores();
+      return;
+    } catch (err) {
+      console.warn('Backend bootstrap unavailable, falling back to local store:', err.message);
+    }
+  }
+
+  // Offline / file:// fallback
+  AppState.isBackendOnline = false;
   try {
     const savedUpvotes = localStorage.getItem('afostech_upvotes');
     if (savedUpvotes) AppState.upvotedProjects = new Set(JSON.parse(savedUpvotes));
   } catch (e) {}
-
   try {
     const savedCustom = localStorage.getItem('afostech_custom_projects');
     if (savedCustom) AppState.customSubmissions = JSON.parse(savedCustom);
   } catch (e) {}
 
-  try {
-    const savedInnovators = localStorage.getItem('afostech_custom_innovators');
-    if (savedInnovators) {
-      AppState.innovators = JSON.parse(savedInnovators);
-    } else {
-      AppState.innovators = JSON.parse(JSON.stringify(AFOSTECH_DATA.innovators));
-    }
-  } catch (e) {
-    AppState.innovators = JSON.parse(JSON.stringify(AFOSTECH_DATA.innovators));
-  }
-
-  try {
-    const savedPartnerships = localStorage.getItem('afostech_partnerships');
-    if (savedPartnerships) {
-      AppState.partnershipRequests = JSON.parse(savedPartnerships);
-    } else {
-      AppState.partnershipRequests = JSON.parse(JSON.stringify(AFOSTECH_DATA.partnershipRequests));
-    }
-  } catch (e) {
-    AppState.partnershipRequests = JSON.parse(JSON.stringify(AFOSTECH_DATA.partnershipRequests));
-  }
-
-  try {
-    const savedDispatches = localStorage.getItem('afostech_verification_dispatches');
-    if (savedDispatches) {
-      AppState.verificationDispatches = JSON.parse(savedDispatches);
-    } else {
-      AppState.verificationDispatches = JSON.parse(JSON.stringify(AFOSTECH_DATA.verificationDispatches || []));
-    }
-  } catch (e) {
-    AppState.verificationDispatches = JSON.parse(JSON.stringify(AFOSTECH_DATA.verificationDispatches || []));
-  }
-
-  try {
-    const savedTheses = localStorage.getItem('afostech_theses');
-    if (savedTheses) {
-      AppState.theses = JSON.parse(savedTheses);
-    } else {
-      AppState.theses = JSON.parse(JSON.stringify(AFOSTECH_DATA.theses || []));
-    }
-  } catch (e) {
-    AppState.theses = JSON.parse(JSON.stringify(AFOSTECH_DATA.theses || []));
-  }
-
-    try {
-    const savedFeedPosts = localStorage.getItem('afostech_feed_posts');
-    if (savedFeedPosts) {
-      AppState.feedPosts = JSON.parse(savedFeedPosts);
-    } else {
-      AppState.feedPosts = JSON.parse(JSON.stringify(AFOSTECH_DATA.feedPosts || []));
-    }
-  } catch (e) {
-    AppState.feedPosts = JSON.parse(JSON.stringify(AFOSTECH_DATA.feedPosts || []));
-  }
-
-  try {
-    const savedMessages = localStorage.getItem('afostech_innovator_messages');
-    if (savedMessages) {
-      AppState.innovatorMessages = JSON.parse(savedMessages);
-    } else {
-      AppState.innovatorMessages = [];
-    }
-  } catch (e) {
-    AppState.innovatorMessages = [];
-  }
-
-    try {
-    const savedOrders = localStorage.getItem('afostech_product_orders');
-    if (savedOrders) {
-      AppState.productOrders = JSON.parse(savedOrders);
-    } else {
-      AppState.productOrders = JSON.parse(JSON.stringify(AFOSTECH_DATA.productOrders || []));
-    }
-  } catch (e) {
-    AppState.productOrders = JSON.parse(JSON.stringify(AFOSTECH_DATA.productOrders || []));
-  }
-
-  AppState.projects = [...AFOSTECH_DATA.projects, ...AppState.customSubmissions];
-
-  try {
-    const savedImgOverrides = localStorage.getItem('afostech_project_images');
-    if (savedImgOverrides) {
-      const overrides = JSON.parse(savedImgOverrides);
-      AppState.projects.forEach(p => {
-        if (overrides[p.id]) p.image = overrides[p.id];
-      });
-    }
-  } catch (e) {}
-  AppState.universities = JSON.parse(JSON.stringify(AFOSTECH_DATA.universities));
-  AppState.news = JSON.parse(JSON.stringify(AFOSTECH_DATA.news));
-
+  AppState.innovators = JSON.parse(JSON.stringify(AFOSTECH_DATA.innovators || []));
+  AppState.theses = JSON.parse(JSON.stringify(AFOSTECH_DATA.theses || []));
+  AppState.projects = [...(AFOSTECH_DATA.projects || []), ...AppState.customSubmissions];
+  AppState.universities = JSON.parse(JSON.stringify(AFOSTECH_DATA.universities || []));
+  AppState.news = JSON.parse(JSON.stringify(AFOSTECH_DATA.news || []));
   recalculateUniversityScores();
+}
+
+async function fetchStaffDashboardData() {
+  if (!AppState.currentStaffUser || !isHttpOrigin()) return;
+  try {
+    const staffData = await apiRequest('/api/staff/dashboard');
+    AppState.partnershipRequests = staffData.partnershipRequests || [];
+    AppState.verificationDispatches = staffData.verificationDispatches || [];
+    AppState.investorInquiries = staffData.investorInquiries || [];
+    if (Array.isArray(staffData.innovators)) {
+      AppState.innovators = staffData.innovators;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch staff dashboard:', err.message);
+  }
 }
 
 function saveState() {
   try {
-    localStorage.setItem('afostech_upvotes', JSON.stringify(Array.from(AppState.upvotedProjects)));
-    localStorage.setItem('afostech_custom_projects', JSON.stringify(AppState.customSubmissions));
-    localStorage.setItem('afostech_custom_innovators', JSON.stringify(AppState.innovators));
-    localStorage.setItem('afostech_partnerships', JSON.stringify(AppState.partnershipRequests));
-    localStorage.setItem('afostech_verification_dispatches', JSON.stringify(AppState.verificationDispatches));
-    localStorage.setItem('afostech_theses', JSON.stringify(AppState.theses));
+    if (AppState.authToken) localStorage.setItem('afostech_auth_token', AppState.authToken);
+    else localStorage.removeItem('afostech_auth_token');
+    if (!AppState.isBackendOnline) {
+      localStorage.setItem('afostech_upvotes', JSON.stringify(Array.from(AppState.upvotedProjects)));
+      localStorage.setItem('afostech_custom_projects', JSON.stringify(AppState.customSubmissions));
+    }
   } catch (e) {}
 }
 
@@ -269,15 +276,56 @@ function setupEventListeners() {
   document.querySelectorAll('.js-open-submit').forEach(btn => btn.addEventListener('click', openSubmitModal));
   document.querySelectorAll('.js-open-submit-thesis').forEach(btn => btn.addEventListener('click', openSubmitThesisModal));
   document.querySelectorAll('.js-open-partnership').forEach(btn => btn.addEventListener('click', openPartnershipModal));
-  document.querySelectorAll('.js-open-staff-login').forEach(btn => btn.addEventListener('click', openStaffLoginModal));
-  document.querySelectorAll('.js-open-innovator-auth').forEach(btn => btn.addEventListener('click', openInnovatorAuthModal));
-  document.querySelectorAll('.js-open-create-feed-post').forEach(btn => btn.addEventListener('click', () => openCreateFeedPostModal()));
+  document.querySelectorAll('.js-open-auth').forEach(btn => btn.addEventListener('click', () => openAuthModal('signin')));
 
-  const searchFeedInput = document.getElementById('searchFeedInput');
-  if (searchFeedInput) {
-    searchFeedInput.addEventListener('input', (e) => {
-      AppState.feedSearchQuery = e.target.value.toLowerCase().trim();
-      renderFeed();
+  // Mobile side drawer controls
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const mobileShortcutBtn = document.getElementById('mobileSideShortcutBtn');
+  const mobileCloseBtn = document.getElementById('mobileDrawerCloseBtn');
+  const mobileBackdrop = document.getElementById('mobileDrawerBackdrop');
+
+  if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleMobileNavDrawer);
+  if (mobileShortcutBtn) mobileShortcutBtn.addEventListener('click', toggleMobileNavDrawer);
+  if (mobileCloseBtn) mobileCloseBtn.addEventListener('click', closeMobileNavDrawer);
+  if (mobileBackdrop) mobileBackdrop.addEventListener('click', closeMobileNavDrawer);
+
+  document.querySelectorAll('.mobile-drawer-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchTab(tab);
+      closeMobileNavDrawer();
+    });
+  });
+
+  const mobileSubmitBtn = document.getElementById('mobileDrawerSubmitBtn');
+  if (mobileSubmitBtn) {
+    mobileSubmitBtn.addEventListener('click', () => {
+      closeMobileNavDrawer();
+      openSubmitModal();
+    });
+  }
+
+  const mobilePartnerBtn = document.getElementById('mobileDrawerPartnershipBtn');
+  if (mobilePartnerBtn) {
+    mobilePartnerBtn.addEventListener('click', () => {
+      closeMobileNavDrawer();
+      openPartnershipModal();
+    });
+  }
+
+  const mobileAuthBtn = document.getElementById('mobileDrawerAuthBtn');
+  if (mobileAuthBtn) {
+    mobileAuthBtn.addEventListener('click', () => {
+      closeMobileNavDrawer();
+      openAuthModal('signin');
+    });
+  }
+
+  const mobileLogoutBtn = document.getElementById('mobileDrawerLogoutBtn');
+  if (mobileLogoutBtn) {
+    mobileLogoutBtn.addEventListener('click', () => {
+      closeMobileNavDrawer();
+      logoutCurrentUser();
     });
   }
 
@@ -286,7 +334,12 @@ function setupEventListeners() {
   document.querySelectorAll('.modal-backdrop').forEach(modal => {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      closeMobileNavDrawer();
+    }
+  });
 
   // Forms
   const submitForm = document.getElementById('projectSubmissionForm');
@@ -298,17 +351,11 @@ function setupEventListeners() {
   const partnerForm = document.getElementById('partnershipRequestForm');
   if (partnerForm) partnerForm.addEventListener('submit', handlePartnershipSubmit);
 
-  const staffForm = document.getElementById('staffLoginForm');
-  if (staffForm) staffForm.addEventListener('submit', handleStaffLogin);
+  const unifiedLoginForm = document.getElementById('unifiedLoginForm');
+  if (unifiedLoginForm) unifiedLoginForm.addEventListener('submit', handleUnifiedSignIn);
 
-  const innovatorSignInForm = document.getElementById('innovatorSignInForm');
-  if (innovatorSignInForm) innovatorSignInForm.addEventListener('submit', handleInnovatorSignIn);
-
-  const innovatorSignUpForm = document.getElementById('innovatorSignUpForm');
-  if (innovatorSignUpForm) innovatorSignUpForm.addEventListener('submit', handleInnovatorSignUp);
-
-  const innovatorAuthForm = document.getElementById('innovatorAuthForm');
-  if (innovatorAuthForm) innovatorAuthForm.addEventListener('submit', handleInnovatorAuth);
+  const unifiedRegisterForm = document.getElementById('unifiedRegisterForm');
+  if (unifiedRegisterForm) unifiedRegisterForm.addEventListener('submit', handleUnifiedRegister);
 
   const investorForm = document.getElementById('investorInquiryForm');
   if (investorForm) investorForm.addEventListener('submit', handleInvestorInquirySubmit);
@@ -396,14 +443,65 @@ function updateThesisVerificationNotice() {
   // Cleaned: no public verification notice
 }
 
+function openMobileNavDrawer() {
+  const drawer = document.getElementById('mobileSideDrawer');
+  const backdrop = document.getElementById('mobileDrawerBackdrop');
+  const shortcutBtn = document.getElementById('mobileSideShortcutBtn');
+  const menuBtn = document.getElementById('mobileMenuBtn');
+  if (!drawer) return;
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  if (backdrop) {
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+  }
+  if (shortcutBtn) {
+    shortcutBtn.classList.add('drawer-open');
+    shortcutBtn.setAttribute('aria-expanded', 'true');
+  }
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'true');
+  document.body.classList.add('mobile-drawer-active');
+}
+
+function closeMobileNavDrawer() {
+  const drawer = document.getElementById('mobileSideDrawer');
+  const backdrop = document.getElementById('mobileDrawerBackdrop');
+  const shortcutBtn = document.getElementById('mobileSideShortcutBtn');
+  const menuBtn = document.getElementById('mobileMenuBtn');
+  if (!drawer) return;
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  if (backdrop) {
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
+  if (shortcutBtn) {
+    shortcutBtn.classList.remove('drawer-open');
+    shortcutBtn.setAttribute('aria-expanded', 'false');
+  }
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+  document.body.classList.remove('mobile-drawer-active');
+}
+
+function toggleMobileNavDrawer() {
+  const drawer = document.getElementById('mobileSideDrawer');
+  if (!drawer) return;
+  if (drawer.classList.contains('open')) closeMobileNavDrawer();
+  else openMobileNavDrawer();
+}
+
 // Tab Switching
 function switchTab(tabName) {
   AppState.currentTab = tabName;
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
   });
+  document.querySelectorAll('.mobile-drawer-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+  });
+  closeMobileNavDrawer();
 
-  const views = ['dashboardView', 'catalogView', 'thesesView', 'feedView', 'leaderboardView', 'aboutView', 'newsView', 'innovatorsView'];
+  const views = ['dashboardView', 'catalogView', 'thesesView', 'leaderboardView', 'aboutView', 'newsView', 'innovatorsView'];
   views.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = 'none';
@@ -420,12 +518,10 @@ function switchTab(tabName) {
   else if (tabName === 'dashboard') renderDashboard();
   else if (tabName === 'news') renderNews();
   else if (tabName === 'innovators') renderInnovators();
-  else if (tabName === 'feed') renderFeed();
 }
 
 // Master Render
 function renderApp() {
-  renderFeed();
   renderDashboard();
   renderCatalog();
   renderThesesRepository();
@@ -509,118 +605,124 @@ function renderFooterPartnerCampuses() {
 }
 
 function updateTopAuthStatus() {
-  const staffBtn = document.getElementById('navStaffLoginBtn');
-  if (staffBtn) {
-    if (AppState.currentStaffUser) {
-      staffBtn.innerHTML = `🛡️ Official Portal (${AppState.currentStaffUser.name.split(' ')[1] || 'Staff'})`;
-      staffBtn.classList.add('logged-in');
+  const user = AppState.currentUser;
+  const isLoggedIn = Boolean(user);
+  const isStaff = user && user.role === 'staff';
+  const isInnovator = user && user.role === 'innovator';
+
+  const authBtn = document.getElementById('navAuthBtn');
+  const logoutBtn = document.getElementById('navLogoutBtn');
+
+  if (authBtn) {
+    if (isStaff) {
+      authBtn.innerHTML = `🛡️ ${user.name} &bull; Staff Control Center`;
+      authBtn.classList.add('logged-in');
+      authBtn.title = 'Open Staff Official Control Center';
+    } else if (isInnovator) {
+      authBtn.innerHTML = `🎓 ${user.name.split(' ')[0]} &bull; Innovator Workspace`;
+      authBtn.classList.add('logged-in');
+      authBtn.title = 'Open Student Innovator Workspace';
     } else {
-      staffBtn.innerHTML = `🔒 Staff Portal`;
-      staffBtn.classList.remove('logged-in');
+      authBtn.innerHTML = `🔑 Sign In`;
+      authBtn.classList.remove('logged-in');
+      authBtn.title = 'Sign in with your official staff or student innovator email';
     }
   }
 
-  const innovatorBtn = document.getElementById('navInnovatorBtn');
-  if (innovatorBtn) {
-    if (AppState.currentStudentUser) {
-      innovatorBtn.innerHTML = `🎓 ${AppState.currentStudentUser.name.split(' ')[0]} (Workspace)`;
-      innovatorBtn.classList.add('logged-in');
-    } else {
-      innovatorBtn.innerHTML = `🎓 Innovator Portal`;
-      innovatorBtn.classList.remove('logged-in');
-    }
+  if (logoutBtn) {
+    logoutBtn.style.display = isLoggedIn ? 'inline-flex' : 'none';
   }
 
-  // Feed Create Post Button (Remove padlock when logged in)
-  const feedCreatePostBtn = document.getElementById('feedCreatePostBtn');
-  if (feedCreatePostBtn) {
-    if (AppState.currentStudentUser) {
-      feedCreatePostBtn.innerHTML = `<span>+</span> Share Food Science Post`;
-      feedCreatePostBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to publish food science insights`;
-    } else {
-      feedCreatePostBtn.innerHTML = `<span>🔒</span> Share Food Science Post`;
-      feedCreatePostBtn.title = `Innovator login required to publish posts`;
-    }
-  }
-
-  const dashboardCreatePostBtn = document.getElementById('dashboardCreatePostBtn');
-  if (dashboardCreatePostBtn) {
-    if (AppState.currentStudentUser) {
-      dashboardCreatePostBtn.innerHTML = `<span>+</span> Share Food Science Post`;
-      dashboardCreatePostBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to publish`;
-    } else {
-      dashboardCreatePostBtn.innerHTML = `<span>🔒</span> Share Food Science Post`;
-      dashboardCreatePostBtn.title = `Innovator login required`;
-    }
-  }
-
-  // 1. Navbar Submit Button (Remove padlock when logged in)
+  // Unlock submission padlocks whenever signed in (Innovator or Staff)
   const submitNavBtn = document.getElementById('navSubmitBtn') || document.querySelector('.submit-btn-nav');
   if (submitNavBtn) {
-    if (AppState.currentStudentUser) {
+    if (isLoggedIn) {
       submitNavBtn.innerHTML = `<span>+</span> Submit`;
-      submitNavBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to submit`;
+      submitNavBtn.title = `Signed in as ${user.name} — Open to submit`;
     } else {
       submitNavBtn.innerHTML = `<span>🔒</span> Submit`;
-      submitNavBtn.title = `Submissions are exclusively available to authenticated student innovators.`;
+      submitNavBtn.title = `Sign in required to submit innovations.`;
     }
   }
 
-  // 2. Hero Competition Entry Button (Remove padlock when logged in)
   const heroEntryBtn = document.getElementById('heroEntrySubmitBtn');
   if (heroEntryBtn) {
-    if (AppState.currentStudentUser) {
+    if (isLoggedIn) {
       heroEntryBtn.innerHTML = `+ Submit Campus Entry →`;
-      heroEntryBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to submit`;
+      heroEntryBtn.title = `Signed in as ${user.name} — Open to submit`;
     } else {
       heroEntryBtn.innerHTML = `🔒 Innovator Entry →`;
-      heroEntryBtn.title = `Innovator login required`;
+      heroEntryBtn.title = `Sign in required`;
     }
   }
 
-  // 3. Hero Theses Spotlight Button (Remove padlock when logged in)
+  const mobileAuthBtn = document.getElementById('mobileDrawerAuthBtn');
+  const mobileLogoutBtn = document.getElementById('mobileDrawerLogoutBtn');
+  const mobileSubmitBtn = document.getElementById('mobileDrawerSubmitBtn');
+  const mobileUserSummary = document.getElementById('mobileDrawerUserSummary');
+
+  if (mobileAuthBtn) {
+    if (isStaff) {
+      mobileAuthBtn.innerHTML = `🛡️ ${user.name} (Staff Portal)`;
+    } else if (isInnovator) {
+      mobileAuthBtn.innerHTML = `🎓 ${user.name.split(' ')[0]} (Innovator Hub)`;
+    } else {
+      mobileAuthBtn.innerHTML = `🔑 Sign In`;
+    }
+  }
+  if (mobileLogoutBtn) {
+    mobileLogoutBtn.style.display = isLoggedIn ? 'flex' : 'none';
+  }
+  if (mobileSubmitBtn) {
+    mobileSubmitBtn.innerHTML = isLoggedIn ? `+ Submit Innovation` : `🔒 Submit Innovation`;
+  }
+  if (mobileUserSummary) {
+    if (isStaff) mobileUserSummary.textContent = `Staff Official • ${user.name}`;
+    else if (isInnovator) mobileUserSummary.textContent = `Innovator • ${user.name}`;
+    else mobileUserSummary.textContent = `Quick Section Navigator`;
+  }
+
   const heroThesisBtn = document.getElementById('heroThesisSubmitBtn');
   if (heroThesisBtn) {
-    if (AppState.currentStudentUser) {
+    if (isLoggedIn) {
       heroThesisBtn.innerHTML = `+ Submit Your Thesis`;
-      heroThesisBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to upload thesis`;
+      heroThesisBtn.title = `Signed in as ${user.name} — Open to upload thesis`;
     } else {
       heroThesisBtn.innerHTML = `🔒 Innovator Thesis Submission`;
-      heroThesisBtn.title = `Innovator login required`;
+      heroThesisBtn.title = `Sign in required`;
     }
   }
 
-  // 4. Catalog Header Button (Remove padlock when logged in)
   const catalogSubmitBtn = document.getElementById('catalogSubmitBtn');
   if (catalogSubmitBtn) {
-    if (AppState.currentStudentUser) {
+    if (isLoggedIn) {
       catalogSubmitBtn.innerHTML = `<span>+</span> Publish Your Product`;
-      catalogSubmitBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to publish`;
+      catalogSubmitBtn.title = `Signed in as ${user.name} — Open to publish`;
     } else {
       catalogSubmitBtn.innerHTML = `<span>🔒</span> Innovator Submission`;
-      catalogSubmitBtn.title = `Innovator login required`;
+      catalogSubmitBtn.title = `Sign in required`;
     }
   }
 
-  // 5. Theses Header Button (Remove padlock when logged in)
   const thesesSubmitBtn = document.getElementById('thesesSubmitBtn');
   if (thesesSubmitBtn) {
-    if (AppState.currentStudentUser) {
+    if (isLoggedIn) {
       thesesSubmitBtn.innerHTML = `<span>+</span> Submit Research Thesis`;
-      thesesSubmitBtn.title = `Logged in as ${AppState.currentStudentUser.name} — Open to submit thesis`;
+      thesesSubmitBtn.title = `Signed in as ${user.name} — Open to submit thesis`;
     } else {
       thesesSubmitBtn.innerHTML = `<span>🔒</span> Innovator Thesis Submission`;
-      thesesSubmitBtn.title = `Innovator login required`;
+      thesesSubmitBtn.title = `Sign in required`;
     }
   }
 
-  // 6. Innovators Section Profile Button
   const innovatorsAuthBtn = document.getElementById('innovatorsAuthBtn');
   if (innovatorsAuthBtn) {
-    if (AppState.currentStudentUser) {
-      innovatorsAuthBtn.innerHTML = `🎓 My Innovator Profile (${AppState.currentStudentUser.name.split(' ')[0]})`;
+    if (isStaff) {
+      innovatorsAuthBtn.innerHTML = `🛡️ Staff Control Center`;
+    } else if (isInnovator) {
+      innovatorsAuthBtn.innerHTML = `🎓 My Innovator Workspace (${user.name.split(' ')[0]})`;
     } else {
-      innovatorsAuthBtn.innerHTML = `🎓 Innovator Login / Sign Up`;
+      innovatorsAuthBtn.innerHTML = `🔑 Sign In / Join AFOSTECH`;
     }
   }
 }
@@ -1187,45 +1289,48 @@ function createThesisCardHTML(t) {
 // SUBMIT RESEARCH THESIS MODAL (Restricted to Authenticated Innovators)
 // ============================================================================
 function openSubmitThesisModal() {
-  if (!AppState.currentStudentUser) {
-    showToast("🔒 Innovator Access Required: Research thesis submissions are exclusively available to authenticated student members through their profile.");
-    openInnovatorAuthModal('signin');
+  if (!AppState.currentUser) {
+    showToast("🔒 Sign In Required: Please sign in with your student innovator or staff email to submit a research thesis.");
+    openAuthModal('signin');
     return;
   }
 
   const modal = document.getElementById('submitThesisModal');
-  const user = AppState.currentStudentUser;
+  const user = AppState.currentUser;
+  const isStaff = user.role === 'staff';
 
   const univSelect = document.getElementById('thesisSubUniversity');
   if (univSelect) {
     univSelect.innerHTML = AppState.universities.map(u => `
       <option value="${u.id}">${u.shortName} - ${u.name} (${u.country})</option>
     `).join('');
-    univSelect.value = user.universityId;
-    univSelect.disabled = true;
+    if (!isStaff && user.universityId) {
+      univSelect.value = user.universityId;
+      univSelect.disabled = true;
+    } else {
+      univSelect.disabled = false;
+    }
   }
 
   const authorInput = document.getElementById('thesisSubAuthorName');
   if (authorInput) {
     authorInput.value = user.name;
-    authorInput.readOnly = true;
+    authorInput.readOnly = !isStaff;
   }
 
   const admInput = document.getElementById('thesisSubAdmissionNo');
   if (admInput) {
-    admInput.value = user.admissionNo;
-    admInput.readOnly = true;
+    admInput.value = user.admissionNo || (isStaff ? 'STAFF-OFFICIAL' : '');
+    admInput.readOnly = !isStaff;
   }
 
   const degreeInput = document.getElementById('thesisSubDegree');
-  if (degreeInput) {
-    if (!degreeInput.value.trim()) degreeInput.value = user.degree || 'B.Sc. Food Science & Technology';
+  if (degreeInput && !degreeInput.value.trim()) {
+    degreeInput.value = user.degree || 'B.Sc. Food Science & Technology';
   }
 
-  // Authenticated user details pre-filled into fields
-  const oldBanner = document.getElementById('thesisAuthUserBanner'); if (oldBanner) oldBanner.remove();
-
-  updateThesisVerificationNotice();
+  const oldBanner = document.getElementById('thesisAuthUserBanner');
+  if (oldBanner) oldBanner.remove();
 
   if (modal) {
     modal.classList.add('active');
@@ -1233,15 +1338,15 @@ function openSubmitThesisModal() {
   }
 }
 
-function handleNewThesisSubmit(e) {
+async function handleNewThesisSubmit(e) {
   e.preventDefault();
 
   const title = document.getElementById('thesisSubTitle').value.trim();
   const tagline = document.getElementById('thesisSubTagline').value.trim();
   const univSelect = document.getElementById('thesisSubUniversity');
-  const universityId = (univSelect && univSelect.value) || (AppState.currentStudentUser && AppState.currentStudentUser.universityId);
-  const admissionNo = (document.getElementById('thesisSubAdmissionNo').value.trim()) || (AppState.currentStudentUser && AppState.currentStudentUser.admissionNo);
-  const authorName = (document.getElementById('thesisSubAuthorName').value.trim()) || (AppState.currentStudentUser && AppState.currentStudentUser.name);
+  const universityId = (univSelect && univSelect.value) || (AppState.currentUser && AppState.currentUser.universityId) || 'jkuat';
+  const admissionNo = (document.getElementById('thesisSubAdmissionNo').value.trim()) || (AppState.currentUser && AppState.currentUser.admissionNo) || 'MEMBER';
+  const authorName = (document.getElementById('thesisSubAuthorName').value.trim()) || (AppState.currentUser && AppState.currentUser.name);
   const degree = document.getElementById('thesisSubDegree').value.trim();
   const category = document.getElementById('thesisSubCategory').value;
   const supervisors = document.getElementById('thesisSubSupervisors').value.trim();
@@ -1249,102 +1354,64 @@ function handleNewThesisSubmit(e) {
   const abstract = document.getElementById('thesisSubAbstract').value.trim();
   const fileInput = document.getElementById('thesisSubFile');
 
-  if (!admissionNo) {
-    showToast("Authentic student admission number is required!");
-    return;
+  const fileObj = {
+    fileName: fileInput.files && fileInput.files[0] ? fileInput.files[0].name : `${authorName.replace(/\s+/g, '_')}_2026_Thesis.pdf`,
+    fileSize: fileInput.files && fileInput.files[0] ? `${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB` : "4.2 MB",
+    pages: Math.floor(65 + Math.random() * 40),
+    downloadsCount: 1
+  };
+  let thesisDataUrl = null;
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    try { thesisDataUrl = await fileToDataUrl(fileInput.files[0]); } catch (err) {}
   }
 
-  const university = AppState.universities.find(u => u.id === universityId);
-  const univName = university ? university.name : "Partner University";
-  const verificationEmail = university ? (university.verificationEmail || `registrar.academic@${university.id}.ac.ke`) : "registrar.academic@university.ac.ke";
-  const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const keywords = keywordsStr ? keywordsStr.split(',').map(s => s.trim()).filter(Boolean) : ["Food Science", "Nutrition", "AFOSTECH Research"];
 
-  // Pick file info
-  const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : `${authorName.replace(/\s+/g, '_')}_2026_Thesis.pdf`;
-  const fileSize = fileInput.files && fileInput.files[0] ? `${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB` : "4.2 MB";
+  if (AppState.isBackendOnline) {
+    try {
+      const result = await apiRequest('/api/theses', {
+        method: 'POST',
+        body: JSON.stringify({
+          title, tagline, author: authorName, authorAdmissionNo: admissionNo,
+          authorDegree: degree, universityId, category, supervisors,
+          keywords, abstract, file: fileObj, thesisDataUrl
+        })
+      });
+      AppState.theses.unshift(result.thesis);
+      closeModal();
+      e.target.reset();
+      recalculateUniversityScores();
+      renderThesesRepository();
+      switchTab('theses');
+      showToast("📚 Research dissertation submitted and saved to database!");
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  }
 
-  // Check if author is already a verified innovator
-  const isVerified = AppState.innovators.some(i => i.admissionNo === admissionNo && i.verified);
-
+  // Fallback offline
+  const univ = AppState.universities.find(u => u.id === universityId);
   const newThesis = {
-    id: `thesis-${Date.now()}`,
-    title: title,
-    tagline: tagline,
-    author: authorName,
-    authorAdmissionNo: admissionNo,
-    authorDegree: degree,
-    authorVerified: isVerified,
-    universityId: universityId,
-    universityName: university ? university.shortName : "Affiliate",
+    id: `thesis-${Date.now()}`, title, tagline, author: authorName,
+    authorAdmissionNo: admissionNo, authorDegree: degree, authorVerified: false,
+    universityId, universityName: univ ? univ.shortName : "Affiliate",
     supervisors: supervisors || "Department Research Committee",
-    department: university ? (university.faculty || "Faculty of Agriculture & Food Science") : "School of Food Science",
-    category: category,
-    categoryLabel: category.toUpperCase(),
-    dateSubmitted: "November 2026",
-    year: "2026",
-    abstract: abstract,
-    keywords: keywordsStr ? keywordsStr.split(',').map(s => s.trim()).filter(Boolean) : ["Food Science", "Nutrition", "AFOSTECH Research"],
-    file: {
-      fileName: fileName,
-      fileSize: fileSize,
-      pages: Math.floor(65 + Math.random() * 40),
-      downloadsCount: 1
-    },
-    viewsCount: 1,
-    comments: [
-      {
-        id: `comm-init-${Date.now()}`,
-        author: "AFOSTECH Editorial Board",
-        role: "Consortium Academic Secretariat",
-        university: "AFOSTECH Inter-Varsity Council",
-        date: "Just now",
-        content: `Welcome to the research repository! This dissertation has been published by ${authorName} (${admissionNo}) and is now open for peer reviews and document downloads across all participating university chapters.`
-      }
-    ]
+    department: univ ? (univ.faculty || "School of Food Science") : "School of Food Science",
+    category, categoryLabel: category.toUpperCase(),
+    dateSubmitted: "November 2026", year: "2026", abstract, keywords, file: fileObj,
+    viewsCount: 1, comments: []
   };
-
-  // Add automated verification prompt record
-  const dispatchRef = `AFOST-VER-THESIS-${Math.floor(1000 + Math.random() * 9000)}`;
-  const newDispatch = {
-    id: `disp-thesis-${Date.now()}`,
-    referenceCode: dispatchRef,
-    projectId: newThesis.id,
-    projectTitle: `[Thesis] ${title}`,
-    authorName: authorName,
-    admissionNo: admissionNo,
-    universityId: universityId,
-    universityName: univName,
-    recipientEmail: verificationEmail,
-    ccEmails: "secretariat@afostech-students.org",
-    dispatchedAt: nowStr,
-    status: "Prompt Sent (Pending Confirmation)",
-    dissertationDoc: fileName,
-    remarks: `Student submitted full research thesis to the academic repository.`
-  };
-  if (!AppState.verificationDispatches) AppState.verificationDispatches = [];
-  AppState.verificationDispatches.unshift(newDispatch);
-
-  if (!AppState.theses) AppState.theses = [];
   AppState.theses.unshift(newThesis);
-
   saveState();
-  recalculateUniversityScores();
-  renderConsortiumStats();
   closeModal();
   e.target.reset();
-
-  showToast(`🎉 Research thesis published! Open-access document now available for peers.`);
   renderThesesRepository();
-
-  // Immediately open the newly submitted thesis reader modal
-  setTimeout(() => {
-    openThesisDetail(newThesis.id, 'abstract');
-  }, 350);
+  switchTab('theses');
+  showToast("📚 Research dissertation submitted successfully!");
 }
 
-// ============================================================================
-// THESIS DETAIL, SUMMARY, DOCUMENT VIEWER & PEER COMMENTS MODAL
-// ============================================================================
 function openThesisDetail(thesisId, defaultTab = 'abstract') {
   const thesis = (AppState.theses || []).find(t => t.id === thesisId);
   if (!thesis) return;
@@ -1606,70 +1673,98 @@ function switchThesisModalTab(tabId) {
   });
 }
 
-function downloadThesis(thesisId) {
-  const thesis = (AppState.theses || []).find(t => t.id === thesisId);
+async function downloadThesis(thesisId) {
+  const thesis = AppState.theses.find(t => t.id === thesisId);
   if (!thesis) return;
 
-  if (!thesis.file) thesis.file = { fileName: "Thesis.pdf", fileSize: "4.5 MB", pages: 80, downloadsCount: 0 };
-  thesis.file.downloadsCount = (thesis.file.downloadsCount || 0) + 1;
-  saveState();
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest(`/api/theses/${thesisId}/download`, { method: 'POST' });
+      if (thesis.file) thesis.file.downloadsCount = res.downloadsCount;
+    } catch (e) {}
+  } else if (thesis.file) {
+    thesis.file.downloadsCount = (thesis.file.downloadsCount || 0) + 1;
+    saveState();
+  }
 
-  // Update live counters in card and modal
-  const cardDl = document.getElementById(`cardDl_${thesis.id}`);
-  if (cardDl) cardDl.innerText = thesis.file.downloadsCount;
-  const modalDl = document.getElementById(`modalDlCount_${thesis.id}`);
-  if (modalDl) modalDl.innerText = thesis.file.downloadsCount;
-
-  showToast(`📥 Downloading "${thesis.file.fileName}" (${thesis.file.fileSize}) for university research!`);
+  const fileName = thesis.file ? thesis.file.fileName : 'Thesis_Manuscript.pdf';
+  if (thesis.file && thesis.file.url) {
+    window.open(thesis.file.url, '_blank');
+  }
+  showToast(`Downloading Open Access Thesis: "${fileName}"...`);
+  renderThesesRepository();
 }
 
-function handleThesisCommentSubmit(e, thesisId) {
+async function handleThesisCommentSubmit(e, thesisId) {
   e.preventDefault();
-  const thesis = (AppState.theses || []).find(t => t.id === thesisId);
+  const thesis = AppState.theses.find(t => t.id === thesisId);
   if (!thesis) return;
 
-  const authorInput = document.getElementById(`commAuthorName_${thesisId}`);
-  const roleInput = document.getElementById(`commAuthorRole_${thesisId}`);
-  const contentInput = document.getElementById(`commContent_${thesisId}`);
+  const author = (document.getElementById(`commAuthorName_${thesisId}`)?.value || '').trim();
+  const role = (document.getElementById(`commAuthorRole_${thesisId}`)?.value || '').trim() || 'Student Researcher / Peer Reviewer';
+  const content = (document.getElementById(`commContent_${thesisId}`)?.value || '').trim();
+  if (!author || !content) return;
 
-  if (!authorInput || !contentInput || !contentInput.value.trim()) return;
-
-  const newComm = {
-    id: `comm-${Date.now()}`,
-    author: authorInput.value.trim(),
-    role: roleInput ? roleInput.value.trim() : "Student Researcher",
-    university: "Consortium Chapter",
-    date: "Just now",
-    content: contentInput.value.trim()
+  const university = (AppState.currentUser && AppState.currentUser.universityName) || 'AFOSTECH Community';
+  let newComment = {
+    id: `comm-${Date.now()}`, author, role, university, date: 'Just now', content
   };
 
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest(`/api/theses/${thesisId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ author, role, university, content })
+      });
+      newComment = res.comment;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  }
+
   if (!thesis.comments) thesis.comments = [];
-  thesis.comments.unshift(newComm);
+  thesis.comments.push(newComment);
   saveState();
 
   showToast(`💬 Peer review comment posted on "${thesis.title}"!`);
-
-  // Refresh view and stay on comments tab
   openThesisDetail(thesisId, 'comments');
   renderThesesRepository();
 }
 
-function toggleUpvote(projectId) {
+async function toggleUpvote(projectId) {
   const project = AppState.projects.find(p => p.id === projectId);
   if (!project) return;
 
-  const hasUpvoted = AppState.upvotedProjects.has(projectId);
-  if (hasUpvoted) {
-    AppState.upvotedProjects.delete(projectId);
-    project.upvotes = Math.max(0, project.upvotes - 1);
-    showToast(`Removed endorsement for ${project.title}`);
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest(`/api/projects/${projectId}/upvote`, { method: 'POST' });
+      project.upvotes = res.upvotes;
+      if (res.upvoted) {
+        AppState.upvotedProjects.add(projectId);
+        showToast(`Endorsed! +5 competition points awarded to ${project.universityName} 🎉`);
+      } else {
+        AppState.upvotedProjects.delete(projectId);
+        showToast(`Removed endorsement for ${project.title}`);
+      }
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
   } else {
-    AppState.upvotedProjects.add(projectId);
-    project.upvotes += 1;
-    showToast(`Endorsed! +5 competition points awarded to ${project.universityName} 🎉`);
+    const hasUpvoted = AppState.upvotedProjects.has(projectId);
+    if (hasUpvoted) {
+      AppState.upvotedProjects.delete(projectId);
+      project.upvotes = Math.max(0, project.upvotes - 1);
+      showToast(`Removed endorsement for ${project.title}`);
+    } else {
+      AppState.upvotedProjects.add(projectId);
+      project.upvotes += 1;
+      showToast(`Endorsed! +5 competition points awarded to ${project.universityName} 🎉`);
+    }
+    saveState();
   }
 
-  saveState();
   recalculateUniversityScores();
   renderCatalog();
   renderDashboard();
@@ -2063,22 +2158,29 @@ function openProjectDetail(projectId) {
       </div>
     </div>
 
-    <!-- Try Product Commercial Callout -->
+    <!-- Try Product External Marketplace Link Callout -->
     <div class="try-product-callout">
       <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-size: 2.2rem;">🛍️</span>
         <div>
           <h4 style="font-size: 1.05rem; font-weight: 900; color: #064e3b; margin-bottom: 2px;">
-            Taste &amp; Order This Food Prototype (${project.commercial ? (project.commercial.singlePriceFormatted || '$2.00') : '$2.00'})
+            Try &amp; Order This Food Prototype
           </h4>
           <p style="font-size: 0.82rem; color: #047857; line-height: 1.45;">
-            Order online for home delivery / regional export freight, or locate physical campus outlets. Commercial proceeds directly fund <strong>${project.universityName}</strong> student innovators &amp; AFOSTECH grants!
+            Directs you to our dedicated <strong>AFOSTECH Marketplace App</strong> to order samples/wholesale packs or locate physical stores.
           </p>
         </div>
       </div>
-      <button class="btn-primary" style="padding: 10px 22px; font-size: 0.9rem; background: linear-gradient(135deg, #059669, #047857); border: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(5,150,105,0.3);" onclick="openTryProductModal('${project.id}')">
-        🛒 Try Product Now →
-      </button>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        ${(AppState.currentUser && (AppState.currentUser.role === 'staff' || project.leadAdmissionNo === AppState.currentUser.admissionNo || (project.authors || []).some(a => a.name === AppState.currentUser.name))) ? `
+          <button class="btn-outline" style="padding: 9px 14px; font-size: 0.84rem; border-color: #059669; color: #065f46;" onclick="openProductImageEditor('${project.id}')">
+            🖼️ Edit Photo
+          </button>
+        ` : ''}
+        <button class="btn-primary" style="padding: 10px 22px; font-size: 0.9rem; background: linear-gradient(135deg, #059669, #047857); border: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(5,150,105,0.3);" onclick="openTryProductModal('${project.id}')">
+          🛒 Try Product →
+        </button>
+      </div>
     </div>
 
     <!-- Institutional Authenticity Verification Status -->
@@ -2103,7 +2205,7 @@ function openProjectDetail(projectId) {
     </div>
 
     <!-- Nutritional Breakdown & Sensory Evaluation Split -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px;">
+    <div class="detail-analytics-grid">
       <div class="nutrition-panel">
         <div class="nutrition-title">Nutrition Facts</div>
         <div style="font-size: 0.78rem; margin-bottom: 8px; color: #64748b;">Analytical Laboratory Test Data (Per 100g)</div>
@@ -2188,47 +2290,51 @@ function submitPeerComment(projectId) {
 // SUBMIT INNOVATION MODAL (Restricted to Authenticated Student Innovators)
 // ============================================================================
 function openSubmitModal() {
-  if (!AppState.currentStudentUser) {
-    showToast("🔒 Innovator Access Required: Submissions are exclusively available to authenticated student members through their profile.");
-    openInnovatorAuthModal('signin');
+  if (!AppState.currentUser) {
+    showToast("🔒 Sign In Required: Please sign in with your student innovator or staff email to feature an innovation.");
+    openAuthModal('signin');
     return;
   }
 
   const modal = document.getElementById('submitProjectModal');
-  const user = AppState.currentStudentUser;
+  const user = AppState.currentUser;
+  const isStaff = user.role === 'staff';
 
   const univSelect = document.getElementById('subUniversity');
   if (univSelect) {
     univSelect.innerHTML = AppState.universities.map(u => `
       <option value="${u.id}">${u.shortName} - ${u.name} (${u.country})</option>
     `).join('');
-    univSelect.value = user.universityId;
-    univSelect.disabled = true;
+    if (!isStaff && user.universityId) {
+      univSelect.value = user.universityId;
+      univSelect.disabled = true;
+    } else {
+      univSelect.disabled = false;
+    }
   }
 
   const authorInput = document.getElementById('subAuthorName');
   if (authorInput) {
     authorInput.value = user.name;
-    authorInput.readOnly = true;
+    authorInput.readOnly = !isStaff;
   }
 
   const admInput = document.getElementById('subLeadAdmissionNo');
   if (admInput) {
-    admInput.value = user.admissionNo;
-    admInput.readOnly = true;
+    admInput.value = user.admissionNo || (isStaff ? 'STAFF-OFFICIAL' : '');
+    admInput.readOnly = !isStaff;
   }
 
   const roleInput = document.getElementById('subAuthorRole');
   if (roleInput && !roleInput.value.trim()) {
-    roleInput.value = `Lead Innovator / ${user.degree || 'B.Sc. Food Science & Tech'}`;
+    roleInput.value = isStaff ? `Faculty Advisor / ${user.staffRole || 'Staff Official'}` : `Lead Innovator / ${user.degree || 'B.Sc. Food Science & Tech'}`;
   }
 
-  const oldBanner = document.getElementById('submitAuthUserBanner'); if (oldBanner) oldBanner.remove();
-  
-  // Reset team members buffer
+  const oldBanner = document.getElementById('submitAuthUserBanner');
+  if (oldBanner) oldBanner.remove();
+
   AppState.teamMembersBuffer = [];
   renderTeamMembersBuilder();
-  updateSubmitVerificationNotice();
 
   if (modal) {
     modal.classList.add('active');
@@ -2288,49 +2394,47 @@ function removeTeamMember(index) {
   renderTeamMembersBuilder();
 }
 
-function handleNewProjectSubmit(e) {
+async function handleNewProjectSubmit(e) {
   e.preventDefault();
 
   const title = document.getElementById('subTitle').value.trim();
   const tagline = document.getElementById('subTagline').value.trim();
-  const univSelect = document.getElementById('subUniversity');
-  const universityId = (univSelect && univSelect.value) || (AppState.currentStudentUser && AppState.currentStudentUser.universityId);
-  const leadAdmissionNo = (document.getElementById('subLeadAdmissionNo').value.trim()) || (AppState.currentStudentUser && AppState.currentStudentUser.admissionNo);
+  const universityId = document.getElementById('subUniversity').value;
+  const leadAdmissionNo = (document.getElementById('subLeadAdmissionNo').value.trim()) || (AppState.currentUser && AppState.currentUser.admissionNo) || 'MEMBER';
   const category = document.getElementById('subCategory').value;
-  const authorName = (document.getElementById('subAuthorName').value.trim()) || (AppState.currentStudentUser && AppState.currentStudentUser.name);
+  const authorName = document.getElementById('subAuthorName').value.trim();
   const authorRole = document.getElementById('subAuthorRole').value.trim();
-  const ingredientsStr = document.getElementById('subIngredients').value.trim();
   const summary = document.getElementById('subSummary').value.trim();
+  const ingredientsStr = document.getElementById('subIngredients').value.trim();
   const fileInput = document.getElementById('subDissertationFile');
 
-  if (!leadAdmissionNo) {
-    showToast("Authentic student admission number is required!");
+  if (!title || !tagline || !authorName) {
+    showToast("Please complete all required prototype fields.");
     return;
   }
 
-  const university = AppState.universities.find(u => u.id === universityId);
-  const univName = university ? university.shortName : "Affiliate University";
-
-  // Build team authors roster
   const allAuthors = [
     {
       name: authorName,
       admissionNo: leadAdmissionNo,
-      role: authorRole || "Lead Food Technologist",
+      role: authorRole || "Lead Researcher",
       year: "Student Lead",
       contribution: "Lead formulation and laboratory protocol author."
     },
     ...AppState.teamMembersBuffer
   ];
 
-  // Pick dissertation file info
-  let dissertationDoc = {
+  const dissertationDoc = {
     name: fileInput.files && fileInput.files[0] ? fileInput.files[0].name : `${title.replace(/\s+/g, '_')}_Dissertation.pdf`,
     size: fileInput.files && fileInput.files[0] ? `${(fileInput.files[0].size / 1024 / 1024).toFixed(1)} MB` : "2.8 MB",
     pages: 65,
     dateSubmitted: "November 2026",
     certifiedByDean: true
   };
+  let dissertationDataUrl = null;
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    try { dissertationDataUrl = await fileToDataUrl(fileInput.files[0]); } catch (err) {}
+  }
 
   let defaultImg = (document.getElementById('subProductImageUrl')?.value || '').trim() || "assets/spirocracker.svg";
   if (!defaultImg || defaultImg === 'assets/spirocracker.svg') {
@@ -2340,96 +2444,65 @@ function handleNewProjectSubmit(e) {
     else if (category === 'functional') defaultImg = "assets/enzibrew.svg";
   }
 
-  const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  const dispatchRef = `AFOST-VER-${(university ? university.shortName : "UNIV").replace(/[^a-zA-Z]/g, '').toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const verificationEmail = university ? (university.verificationEmail || `registrar.academic@${university.id}.ac.ke`) : "registrar.academic@university.ac.ke";
-  const deanEmail = university ? (university.deanEmail || `dean.foodscience@${university.id}.ac.ke`) : "dean.foodscience@university.ac.ke";
+  const ingredients = ingredientsStr.split(',').map(s => s.trim()).filter(Boolean);
 
-  const newProj = {
-    id: `custom-${Date.now()}`,
-    title: title,
-    tagline: tagline,
-    universityId: universityId,
-    universityName: univName,
-    leadAdmissionNo: leadAdmissionNo,
-    category: category,
-    categoryLabel: category.toUpperCase(),
-    authors: allAuthors,
-    dissertationFile: dissertationDoc,
-    featured: false,
-    upvotes: 1,
-    peerReviews: 0,
-    sustainabilityScore: 4.8,
-    sensoryScore: 8.9,
-    status: "Newly Published by Student",
-    summary: summary,
-    ingredients: ingredientsStr.split(',').map(s => s.trim()).filter(Boolean),
-    nutritionPer100g: {
-      calories: "280 kcal",
-      protein: "14.2 g",
-      carbohydrates: "38.0 g",
-      dietaryFiber: "6.5 g",
-      iron: "4.2 mg"
-    },
-    sensoryProfile: {
-      taste: 8.9,
-      aroma: 8.7,
-      textureCrunch: 9.0,
-      colorAppeal: 8.8,
-      overallAcceptability: 8.9
-    },
-    processFlow: [
-      "Preparation of raw biomass and indigenous ingredients.",
-      "Controlled laboratory formulating, pasteurization and testing.",
-      "Sensory panel trials and thesis verification."
-    ],
-    image: defaultImg,
-    badges: ["✨ New Student Submission", `📍 ${univName}`, `👥 ${allAuthors.length} Researchers`],
-    institutionalVerification: {
-      status: "Prompt Sent (Pending Confirmation)",
-      recipientEmail: verificationEmail,
-      admissionNo: leadAdmissionNo,
-      referenceCode: dispatchRef,
-      dispatchedAt: nowStr
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          title, tagline, universityId, leadAdmissionNo, category, authorRole,
+          authors: allAuthors, dissertationFile: dissertationDoc, dissertationDataUrl,
+          summary, ingredients, image: defaultImg
+        })
+      });
+      AppState.projects.unshift(res.project);
+      AppState.upvotedProjects.add(res.project.id);
+      recalculateUniversityScores();
+      closeModal();
+      e.target.reset();
+      AppState.teamMembersBuffer = [];
+      renderCatalog();
+      renderDashboard();
+      renderLeaderboard();
+      renderConsortiumStats();
+      switchTab('catalog');
+      showToast("🎉 Innovation prototype saved to database and featured in catalog!");
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
     }
+  }
+
+  const university = AppState.universities.find(u => u.id === universityId);
+  const univName = university ? university.name : "Partner University";
+  const newProj = {
+    id: `custom-${Date.now()}`, title, tagline, universityId, universityName: univName,
+    leadAdmissionNo, category, categoryLabel: category.toUpperCase(),
+    authors: allAuthors, dissertationFile: dissertationDoc, featured: false,
+    upvotes: 1, peerReviews: 0, sustainabilityScore: 4.8, sensoryScore: 8.9,
+    status: "Newly Published by Student", summary, ingredients,
+    nutritionPer100g: { calories: "280 kcal", protein: "14.2 g", carbohydrates: "38.0 g", dietaryFiber: "6.5 g", iron: "4.2 mg" },
+    sensoryProfile: { taste: 8.9, aroma: 8.7, textureCrunch: 9.0, colorAppeal: 8.8, overallAcceptability: 8.9 },
+    processFlow: ["Preparation of raw biomass.", "Controlled formulation & testing.", "Sensory panel trials."],
+    image: defaultImg,
+    badges: ["✨ New Student Submission", `📍 ${univName}`, `👥 ${allAuthors.length} Researchers`]
   };
-
-  // Build automated verification prompt email dispatch
-  const newDispatch = {
-    id: `disp-${Date.now()}`,
-    referenceCode: dispatchRef,
-    projectId: newProj.id,
-    projectTitle: title,
-    authorName: authorName,
-    admissionNo: leadAdmissionNo,
-    universityId: universityId,
-    universityName: university ? university.name : univName,
-    recipientEmail: verificationEmail,
-    ccEmails: `${deanEmail}, secretariat@afostech-students.org`,
-    dispatchedAt: nowStr,
-    status: "Prompt Sent (Pending Confirmation)",
-    dissertationDoc: dissertationDoc.name,
-    allAuthors: allAuthors,
-    remarks: `Automated verification prompt dispatched to ${univName} Academic Registrar to certify student admission number ${leadAdmissionNo}.`
-  };
-
-  if (!AppState.verificationDispatches) AppState.verificationDispatches = [];
-  AppState.verificationDispatches.unshift(newDispatch);
-
   AppState.customSubmissions.unshift(newProj);
   AppState.projects.unshift(newProj);
   AppState.upvotedProjects.add(newProj.id);
-
   saveState();
   recalculateUniversityScores();
-
   closeModal();
   e.target.reset();
   AppState.teamMembersBuffer = [];
-
-  showToast(`🏛️ Innovation submitted! An institutional authentication verification prompt has been dispatched to ${univName} Academic Registrar.`);
-
-  renderCurrentView();
+  renderCatalog();
+  renderDashboard();
+  renderLeaderboard();
+  renderConsortiumStats();
+  switchTab('catalog');
+  showToast("🎉 Innovation prototype submitted successfully!");
 }
 
 // ============================================================================
@@ -2443,7 +2516,7 @@ function openPartnershipModal() {
   }
 }
 
-function handlePartnershipSubmit(e) {
+async function handlePartnershipSubmit(e) {
   e.preventDefault();
 
   const univName = document.getElementById('partUnivName').value.trim();
@@ -2453,7 +2526,6 @@ function handlePartnershipSubmit(e) {
   const enrollment = document.getElementById('partEnrollment').value.trim();
   const letter = document.getElementById('partLetter').value.trim();
 
-  // Validate authentic university institutional email
   const isInstitutional = /@(.*\.)?(edu|ac\.[a-z]{2}|edu\.[a-z]{2}|univ-[a-z]+|university)/i.test(officialEmail);
   if (!isInstitutional && !officialEmail.includes('.')) {
     showToast("⚠️ Please provide an authentic university domain email (e.g. dean@univ.ac.ke or dept@univ.edu)!");
@@ -2461,128 +2533,234 @@ function handlePartnershipSubmit(e) {
   }
 
   const cleanCode = univName.split(' ').map(w => w[0]).join('').substring(0, 5).toUpperCase();
-  const refNo = `${cleanCode}/FST/DIR/2026/${Math.floor(100 + Math.random()*900)}`;
-
-  // Capture attached official request letter document file
   const fileInput = document.getElementById('partLetterFile');
-  let letterDoc = null;
+  let letterDoc = {
+    name: `${cleanCode}_Official_Affiliation_Request_Letter_Signed.pdf`,
+    size: '2.4 MB',
+    type: 'application/pdf',
+    uploadedAt: 'Nov 2026'
+  };
+  let letterDocumentDataUrl = null;
   if (fileInput && fileInput.files && fileInput.files[0]) {
     const f = fileInput.files[0];
-    const mbSize = (f.size / (1024 * 1024)).toFixed(2);
     letterDoc = {
       name: f.name,
-      size: `${mbSize} MB`,
+      size: `${(f.size / (1024 * 1024)).toFixed(2)} MB`,
       type: f.type || 'application/pdf',
       uploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
-  } else {
-    letterDoc = {
-      name: `${cleanCode}_Official_Affiliation_Request_Letter_Signed.pdf`,
-      size: '2.4 MB',
-      type: 'application/pdf',
-      uploadedAt: 'Nov 2026'
-    };
+    try { letterDocumentDataUrl = await fileToDataUrl(f); } catch (err) {}
   }
 
-  const newRequest = {
-    id: `req-${Date.now()}`,
-    universityName: univName,
-    shortName: cleanCode,
-    country: country,
-    city: "Main Campus",
-    referenceNo: refNo,
-    facultyDepartment: "Faculty of Agriculture & Food Science",
-    officialEmail: officialEmail,
-    contactPerson: contactPerson,
-    contactTitle: "Dean / Department Head",
-    studentEnrollment: enrollment || "300+ Food Science & Nutrition Students",
-    status: "Pending Official Review",
-    dateApplied: "Just Now",
-    letterDocumentFile: letterDoc,
-    letterSubject: "FORMAL APPLICATION FOR INTER-UNIVERSITY CHAPTER AFFILIATION & STUDENT PRODUCT SHOWCASE ACCESS",
-    letterOfIntent: letter,
-    fullLetterBody: `To: The Executive Council & Directorate of Partnerships
-Association of Food Science and Technology Students (AFOSTECH)
-partnerships@afostech-students.org / secretariat@afostech-students.org
-
-SUBJECT: FORMAL APPLICATION FOR INTER-UNIVERSITY CHAPTER AFFILIATION & STUDENT PRODUCT SHOWCASE ACCESS
-
-Dear Executive Council Members and Faculty Advisors,
-
-On behalf of ${univName} (${country}), I write to formally apply for institutional chapter affiliation with the Association of Food Science and Technology Students (AFOSTECH).
-
-${letter}
-
-Our department currently trains over ${enrollment || '300+'} aspiring food scientists and human nutritionists. Our students are conducting rigorous research on indigenous food preservation, functional nutrition, and post-harvest reduction, and are eager to participate in AFOSTECH's annual Pitch Cup and inter-university leaderboard.
-
-We commit to adopting AFOSTECH standardized sensory testing and food safety guidelines across our campus laboratories.
-
-Yours sincerely in agricultural and food advancement,
-
-[Signed]
-${contactPerson}
-Dean / Department Head
-${univName}
-Institutional Domain Email: ${officialEmail}`
-  };
-
-  AppState.partnershipRequests.unshift(newRequest);
-  saveState();
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest('/api/partnerships', {
+        method: 'POST',
+        body: JSON.stringify({
+          universityName: univName, country, contactPerson, officialEmail,
+          studentEnrollment: enrollment, letterOfIntent: letter,
+          letterDocumentFile: letterDoc, letterDocumentDataUrl
+        })
+      });
+      if (AppState.currentStaffUser) await fetchStaffDashboardData();
+      closeModal();
+      e.target.reset();
+      clearPartLetterFile();
+      showToast(`🏛️ Partnership request for ${univName} saved securely for Secretariat review! Ref: ${res.referenceNo}`);
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  }
 
   closeModal();
   e.target.reset();
   clearPartLetterFile();
-
-  // Toast confirmation specifying forwarding to AFOSTECH official email
-  showToast(`🏛️ Partnership request for ${univName} forwarded to ${AFOSTECH_DATA.organization.partnershipsEmail}! Reference #${newRequest.id.substring(4)}.`);
+  showToast(`🏛️ Partnership request for ${univName} forwarded to AFOSTECH Secretariat!`);
 }
 
 // ============================================================================
-// STAFF LOGIN & OFFICIAL PORTAL
+// UNIFIED ROLE-BASED AUTH & STAFF SECRETARIAT PORTAL
 // ============================================================================
-function openStaffLoginModal() {
-  if (AppState.currentStaffUser) {
-    openStaffPortal();
+function openAuthModal(initialTab = 'signin') {
+  // Route already authenticated users to their role-specific workspace
+  if (AppState.currentUser) {
+    if (AppState.currentUser.role === 'staff') {
+      openStaffPortal();
+    } else {
+      openStudentInnovatorDashboard();
+    }
     return;
   }
-  const modal = document.getElementById('staffLoginModal');
+
+  const modal = document.getElementById('authModal');
+  const univSelect = document.getElementById('authRegUniversity');
+  if (univSelect) {
+    univSelect.innerHTML = AppState.universities.map(u => `
+      <option value="${u.id}">${u.shortName} - ${u.name}</option>
+    `).join('');
+  }
+
+  switchAuthTab(initialTab);
   if (modal) {
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
   }
 }
 
-function handleStaffLogin(e) {
-  e.preventDefault();
-  const email = document.getElementById('staffEmail').value.trim();
-  const password = document.getElementById('staffPassword').value.trim();
+function switchAuthTab(tab) {
+  const signInBtn = document.getElementById('tabAuthSignInBtn');
+  const signUpBtn = document.getElementById('tabAuthSignUpBtn');
+  const signInPane = document.getElementById('authSignInPane');
+  const signUpPane = document.getElementById('authSignUpPane');
+  const modalTitle = document.getElementById('authModalTitle');
 
-  const official = AFOSTECH_DATA.staffOfficials.find(s => s.email.toLowerCase() === email.toLowerCase() && s.password === password);
-  if (!official && password !== 'admin123') {
-    showToast("Invalid official credentials. Use demo: admin@afostech-students.org / admin123");
+  if (tab === 'signin') {
+    if (signInBtn) signInBtn.classList.add('active');
+    if (signUpBtn) signUpBtn.classList.remove('active');
+    if (signInPane) signInPane.classList.add('active');
+    if (signUpPane) signUpPane.classList.remove('active');
+    if (modalTitle) modalTitle.innerText = "Sign In to AFOSTECH";
+  } else {
+    if (signUpBtn) signUpBtn.classList.add('active');
+    if (signInBtn) signInBtn.classList.remove('active');
+    if (signUpPane) signUpPane.classList.add('active');
+    if (signInPane) signInPane.classList.remove('active');
+    if (modalTitle) modalTitle.innerText = "Join AFOSTECH (Student Sign Up)";
+  }
+}
+
+function quickFillAuth(email, password) {
+  const emailInput = document.getElementById('authLoginEmail');
+  const pwdInput = document.getElementById('authLoginPassword');
+  if (emailInput) emailInput.value = email;
+  if (pwdInput) pwdInput.value = password;
+}
+
+async function handleUnifiedSignIn(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const email = (document.getElementById('authLoginEmail')?.value || '').trim();
+  const password = (document.getElementById('authLoginPassword')?.value || '').trim();
+
+  if (!email || !password) {
+    showToast('Please enter your email address and password.');
     return;
   }
 
-  AppState.currentStaffUser = official || AFOSTECH_DATA.staffOfficials[0];
-  closeModal();
-  updateTopAuthStatus();
-  showToast(`Welcome back, ${AppState.currentStaffUser.name} (${AppState.currentStaffUser.role})!`);
-  openStaffPortal();
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      AppState.authToken = res.token;
+      applyAuthenticatedUser(res.user);
+      saveState();
+
+      if (res.user.role === 'staff') {
+        await fetchStaffDashboardData();
+        updateTopAuthStatus();
+        closeModal();
+        showToast(`🛡️ Signed in as Staff Official: ${res.user.name} (${res.user.staffRole || 'Secretariat'})`);
+        openStaffPortal();
+      } else {
+        updateTopAuthStatus();
+        closeModal();
+        showToast(`🎓 Signed in as Innovator: ${res.user.name}. Workspace unlocked.`);
+        openStudentInnovatorDashboard();
+      }
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  }
+
+  // Offline file:// fallback
+  const staffMatch = (AFOSTECH_DATA.staffOfficials || []).find(s => s.email.toLowerCase() === email.toLowerCase() && s.password === password);
+  if (staffMatch) {
+    applyAuthenticatedUser({ ...staffMatch, role: 'staff', staffRole: staffMatch.role });
+    updateTopAuthStatus();
+    closeModal();
+    showToast(`🛡️ Signed in as Staff Official: ${staffMatch.name}`);
+    openStaffPortal();
+    return;
+  }
+  const innMatch = (AppState.innovators || []).find(i => i.email.toLowerCase() === email.toLowerCase() && (i.password === password || password === 'innovator2026'));
+  if (innMatch) {
+    applyAuthenticatedUser({ ...innMatch, role: 'innovator' });
+    updateTopAuthStatus();
+    closeModal();
+    showToast(`🎓 Signed in as Innovator: ${innMatch.name}`);
+    openStudentInnovatorDashboard();
+    return;
+  }
+  showToast('Invalid email or password.');
 }
 
-function staffDemoQuickLogin() {
-  AppState.currentStaffUser = AFOSTECH_DATA.staffOfficials[0];
+async function handleUnifiedRegister(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const name = document.getElementById('authRegName').value.trim();
+  const email = document.getElementById('authRegEmail').value.trim();
+  const admissionNo = document.getElementById('authRegAdm').value.trim();
+  const universityId = document.getElementById('authRegUniversity').value;
+  const degree = document.getElementById('authRegDegree').value.trim();
+  const yearOfStudy = document.getElementById('authRegYear').value;
+  const password = document.getElementById('authRegPassword').value.trim();
+
+  if (!name || !email || !admissionNo || !password) {
+    showToast('Full name, institutional email, admission number, and password are required.');
+    return;
+  }
+
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, admissionNo, universityId, degree, yearOfStudy, password })
+      });
+      closeModal();
+      e.target.reset();
+      showToast('🏛️ ' + res.message);
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  }
+
   closeModal();
-  updateTopAuthStatus();
-  showToast(`Logged in as Official: ${AppState.currentStaffUser.name}!`);
-  openStaffPortal();
+  showToast('🏛️ Registration submitted successfully! Your account application has been received.');
 }
 
-function openStaffPortal() {
+async function logoutCurrentUser() {
+  if (AppState.isBackendOnline) {
+    try { await apiRequest('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+  }
+  AppState.authToken = null;
+  applyAuthenticatedUser(null);
+  saveState();
+  updateTopAuthStatus();
+  closeModal();
+  renderCatalog();
+  showToast('Signed out successfully.');
+}
+
+function logoutStaff() { logoutCurrentUser(); }
+function logoutStudent() { logoutCurrentUser(); }
+
+async function openStaffPortal() {
+  if (!AppState.currentUser || AppState.currentUser.role !== 'staff') {
+    showToast('🔒 Restricted: Only AFOSTECH Staff Officials can access the Secretariat Control Center.');
+    return;
+  }
+  if (AppState.isBackendOnline) {
+    await fetchStaffDashboardData();
+  }
   const modal = document.getElementById('staffPortalModal');
   const body = document.getElementById('staffPortalModalBody');
   if (!modal || !body) return;
-
   renderStaffPortalContents();
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -2590,9 +2768,8 @@ function openStaffPortal() {
 
 function renderStaffPortalContents() {
   const body = document.getElementById('staffPortalModalBody');
-  if (!body) return;
+  if (!body || !AppState.currentStaffUser) return;
 
-  // Partnership table with Read Request Letter feature (Confidential to Staff)
   const partnershipsHTML = AppState.partnershipRequests.map(r => `
     <tr id="req-row-${r.id}">
       <td>
@@ -2605,7 +2782,7 @@ function renderStaffPortalContents() {
         <button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem; background: linear-gradient(135deg, #0284c7, #0369a1); display: inline-flex; align-items: center; gap: 4px;" onclick="openRequestLetter('${r.id}')">
           📄 Read Request Letter
         </button>
-        <div style="font-size: 0.68rem; color: #047857; margin-top: 4px; display: flex; align-items: center; gap: 3px;" title="${r.letterDocumentFile ? r.letterDocumentFile.name : (r.shortName + '_Official_Request_Letter.pdf')}">
+        <div style="font-size: 0.68rem; color: #047857; margin-top: 4px; display: flex; align-items: center; gap: 3px;">
           <span>📎</span> <span style="font-weight: 700; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.letterDocumentFile ? r.letterDocumentFile.name : (r.shortName + '_Official_Request_Letter.pdf')}</span>
         </div>
       </td>
@@ -2618,9 +2795,8 @@ function renderStaffPortalContents() {
     </tr>
   `).join('');
 
-  // Confidential Institutional Dossier Cards (Visible exclusively inside Staff Portal)
   const partnershipCardsHTML = AppState.partnershipRequests.map(r => `
-    <div class="pillar-card" style="border-top: 4px solid ${r.status === 'Approved' ? '#059669' : '#0284c7'}; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between;">
+    <div class="pillar-card" style="border-top: 4px solid ${r.status === 'Approved' ? '#059669' : '#0284c7'}; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
       <div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <span style="font-size: 0.72rem; font-weight: 800; background: ${r.status === 'Approved' ? '#ecfdf5' : '#e0f2fe'}; color: ${r.status === 'Approved' ? '#047857' : '#0369a1'}; padding: 3px 10px; border-radius: 9999px;">
@@ -2629,53 +2805,27 @@ function renderStaffPortalContents() {
           <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">${r.country}</span>
         </div>
         <h4 style="font-size: 1.15rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">${r.universityName}</h4>
-        <div style="font-size: 0.82rem; color: #475569; margin-bottom: 4px;">
-          <strong>Department / Dean:</strong> ${r.contactPerson}
-        </div>
-        <div style="font-size: 0.78rem; font-family: monospace; color: #047857; margin-bottom: 8px;">
-          ✉️ ${r.officialEmail}
-        </div>
-        <p style="font-size: 0.84rem; color: #64748b; line-height: 1.5; margin-bottom: 10px;">
-          "${(r.letterOfIntent || '').substring(0, 115)}..."
-        </p>
-        <div style="font-size: 0.74rem; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 6px 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-            <span>📎</span>
-            <span style="font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${r.letterDocumentFile ? r.letterDocumentFile.name : (r.shortName + '_Official_Request_Letter.pdf')}
-            </span>
-          </div>
-          <span style="font-size: 0.7rem; color: #047857; font-weight: 800; white-space: nowrap; margin-left: 6px;">${r.letterDocumentFile ? r.letterDocumentFile.size : '2.4 MB'}</span>
-        </div>
+        <div style="font-size: 0.82rem; color: #475569; margin-bottom: 4px;"><strong>Department / Dean:</strong> ${r.contactPerson}</div>
+        <div style="font-size: 0.78rem; font-family: monospace; color: #047857; margin-bottom: 8px;">✉️ ${r.officialEmail}</div>
+        <p style="font-size: 0.84rem; color: #64748b; line-height: 1.5; margin-bottom: 10px;">"${(r.letterOfIntent || '').substring(0, 115)}..."</p>
       </div>
       <div style="display: flex; gap: 8px; margin-top: auto;">
-        <button class="btn-primary" style="flex: 1; padding: 8px 12px; font-size: 0.82rem; background: linear-gradient(135deg, #0284c7, #0369a1); display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="openRequestLetter('${r.id}')">
-          <span>📄</span> Read Request Letter →
+        <button class="btn-primary" style="flex: 1; padding: 8px 12px; font-size: 0.82rem; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="openRequestLetter('${r.id}')">
+          📄 Read Request Letter →
         </button>
         ${r.status !== 'Approved' ? `
-          <button class="btn-primary" style="padding: 8px 12px; font-size: 0.82rem; background: linear-gradient(135deg, #059669, #047857);" onclick="approveUniversityPartnership('${r.id}')" title="Approve &amp; Add Chapter">
-            ✓ Approve
-          </button>
+          <button class="btn-primary" style="padding: 8px 12px; font-size: 0.82rem;" onclick="approveUniversityPartnership('${r.id}')">✓ Approve</button>
         ` : ''}
       </div>
     </div>
   `).join('');
 
-  // Innovators verification table
   const innovatorsHTML = AppState.innovators.map(inn => `
     <tr>
-      <td><strong>${inn.name}</strong><br><span style="font-size: 0.72rem; color: #64748b;">${inn.universityName} (Adm: ${inn.admissionNo})</span></td>
-      <td>${inn.productName}</td>
-      <td>
-        <span style="font-size: 0.78rem; font-weight: 700; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;">
-          ${inn.pitchedCompetition}
-        </span>
-      </td>
-      <td>
-        <span style="font-weight: 800; color: ${inn.verified ? '#059669' : '#dc2626'};">
-          ${inn.verified ? '✓ Verified (Board of Honour)' : 'Pending Pitch Approval'}
-        </span>
-      </td>
+      <td><strong>${inn.name}</strong><br><span style="font-size: 0.72rem; color: #64748b;">${inn.universityName || ''} (Adm: ${inn.admissionNo || 'N/A'})</span></td>
+      <td>${inn.productName || '—'}</td>
+      <td><span style="font-size: 0.78rem; font-weight: 700; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;">${inn.pitchedCompetition || 'Standard'}</span></td>
+      <td><span style="font-weight: 800; color: ${inn.verified ? '#059669' : '#dc2626'};">${inn.verified ? '✓ Verified (Board of Honour)' : 'Pending Pitch Approval'}</span></td>
       <td>
         <button class="btn-outline" style="padding: 4px 8px; font-size: 0.72rem;" onclick="toggleInnovatorVerification('${inn.id}')">
           ${inn.verified ? 'Revoke Verification' : 'Verify for Board of Honour'}
@@ -2685,102 +2835,15 @@ function renderStaffPortalContents() {
   `).join('');
 
   body.innerHTML = `
-    <div style="background: linear-gradient(135deg, #064e3b, #047857); color: white; padding: 18px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="background: linear-gradient(135deg, #064e3b, #047857); color: white; padding: 18px 24px; border-radius: 12px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
         <h3 style="font-size: 1.3rem; font-weight: 900; color: white;">AFOSTECH Official Staff Control Center</h3>
-        <p style="font-size: 0.85rem; color: #d1fae5;">Signed in as: <strong>${AppState.currentStaffUser.name}</strong> (${AppState.currentStaffUser.role})</p>
+        <p style="font-size: 0.85rem; color: #d1fae5;">Signed in as: <strong>${AppState.currentStaffUser.name}</strong> (${AppState.currentStaffUser.role}) &bull; ${AppState.currentStaffUser.email}</p>
       </div>
-      <button class="btn-outline" style="background: white; padding: 6px 14px; font-size: 0.8rem;" onclick="logoutStaff()">Logout Staff</button>
+      <button class="btn-outline" style="background: white; padding: 6px 14px; font-size: 0.8rem;" onclick="logoutCurrentUser()">Sign Out</button>
     </div>
 
-    <!-- Section 0: Commercialization Revenue & Orders Desk -->
-    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h4 style="font-size: 1.15rem; font-weight: 900; color: #064e3b; display: flex; align-items: center; gap: 8px;">
-            💰 Commercialization Revenue &amp; Product Sales Fulfillment (${AppState.productOrders.length} Orders)
-          </h4>
-          <p style="font-size: 0.82rem; color: #047857; margin-top: 2px;">
-            Audited 15% consortium commission model powering inter-university hackathons, student patent grants, and lab pilot gear.
-          </p>
-        </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <div style="background: white; border: 1.5px solid #a7f3d0; border-radius: 8px; padding: 8px 14px; text-align: right;">
-            <div style="font-size: 0.7rem; color: #047857; font-weight: 800; text-transform: uppercase;">Total AFOSTECH 15% Revenue</div>
-            <div style="font-size: 1.15rem; font-weight: 900; color: #065f46;">
-              ${AppState.productOrders.reduce((sum, o) => sum + (o.afostechRevenueUSD || 0), 0).toFixed(2)}
-            </div>
-          </div>
-          <div style="background: white; border: 1.5px solid #bae6fd; border-radius: 8px; padding: 8px 14px; text-align: right;">
-            <div style="font-size: 0.7rem; color: #0369a1; font-weight: 800; text-transform: uppercase;">Innovators 85% Disbursed</div>
-            <div style="font-size: 1.15rem; font-weight: 900; color: #0c4a6e;">
-              ${AppState.productOrders.reduce((sum, o) => sum + (o.studentPayoutUSD || 0), 0).toFixed(2)}
-            </div>
-          </div>
-          <div style="background: white; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; text-align: right;">
-            <div style="font-size: 0.7rem; color: #475569; font-weight: 800; text-transform: uppercase;">Gross Sales Volume</div>
-            <div style="font-size: 1.15rem; font-weight: 900; color: #1e293b;">
-              ${AppState.productOrders.reduce((sum, o) => sum + (o.totalUSD || 0), 0).toFixed(2)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="leaderboard-table-wrap">
-        <table class="leaderboard-table" style="font-size: 0.8rem;">
-          <thead>
-            <tr>
-              <th>Order Ref &amp; Date</th>
-              <th>Product Prototype &amp; Lab</th>
-              <th>Buyer &amp; Destination</th>
-              <th>Logistics Classification</th>
-              <th>Units &amp; Gross Total</th>
-              <th>AFOSTECH 15% Share</th>
-              <th>Status &amp; Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${AppState.productOrders.map(o => `
-              <tr>
-                <td>
-                  <strong style="font-family: monospace; color: #047857;">${o.id}</strong><br>
-                  <span style="font-size: 0.72rem; color: #64748b;">${o.date}</span>
-                </td>
-                <td>
-                  <strong>${o.productName}</strong><br>
-                  <span style="font-size: 0.72rem; color: #0284c7;">${o.universityName} (${o.originCountry})</span>
-                </td>
-                <td>
-                  <strong>${o.buyerName}</strong><br>
-                  <span style="font-size: 0.72rem; color: #64748b;">${o.buyerCity}, ${o.buyerCountry}</span>
-                </td>
-                <td>
-                  <span style="font-size: 0.74rem; font-weight: 800; padding: 2px 8px; border-radius: 9999px; background: ${o.isCrossBorder ? '#fef3c7' : '#ecfdf5'}; color: ${o.isCrossBorder ? '#92400e' : '#047857'}; border: 1px solid ${o.isCrossBorder ? '#fde68a' : '#a7f3d0'};">
-                    ${o.isCrossBorder ? '🌍 Cross-Border Wholesale Export' : '🚚 Domestic Order'}
-                  </span>
-                </td>
-                <td>
-                  <strong>${o.quantity}x ${o.unitName}</strong><br>
-                  <span style="color: #059669; font-weight: 800;">Total: ${o.totalUSD.toFixed(2)}</span>
-                </td>
-                <td>
-                  <strong style="color: #0369a1; font-size: 0.9rem;">+${o.afostechRevenueUSD.toFixed(2)}</strong><br>
-                  <span style="font-size: 0.7rem; color: #64748b;">Student: ${o.studentPayoutUSD.toFixed(2)}</span>
-                </td>
-                <td>
-                  <span style="font-weight: 800; color: ${o.status === 'Delivered' ? '#059669' : '#0284c7'};">${o.status}</span><br>
-                  <button class="btn-outline" style="padding: 2px 8px; font-size: 0.7rem; margin-top: 4px;" onclick="cycleOrderStatus('${o.id}')">
-                    Update Dispatch
-                  </button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Section 1: University Partnerships Review (Confidential Staff Eyes Only) -->
+    <!-- Section 1: Confidential University Partnerships Review -->
     <div style="margin-bottom: 32px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 22px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
         <div>
@@ -2789,42 +2852,25 @@ function renderStaffPortalContents() {
               🏛️ University Partnership Inquiries &amp; Dean Letters (${AppState.partnershipRequests.length})
             </h4>
             <span style="font-size: 0.72rem; font-weight: 800; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 9999px;">
-              🔒 Confidential Secretariat Records (Staff Only)
+              🔒 Staff Officials Only
             </span>
           </div>
-          <span style="font-size: 0.78rem; color: #64748b;">Direct institutional submissions sent to partnerships@afostech-students.org. Only authenticated officials have authorization to inspect deans' letters of intent.</span>
+          <span style="font-size: 0.78rem; color: #64748b;">Confidential university affiliation submissions and uploaded official request letters.</span>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button id="staffPartToggleTable" class="btn-outline active" style="font-size: 0.78rem; padding: 5px 12px;" onclick="toggleStaffPartnershipView('table')">
-            📋 Table View
-          </button>
-          <button id="staffPartToggleCards" class="btn-outline" style="font-size: 0.78rem; padding: 5px 12px;" onclick="toggleStaffPartnershipView('cards')">
-            🗂️ Dossier Cards View
-          </button>
+          <button id="staffPartToggleTable" class="btn-outline active" style="font-size: 0.78rem; padding: 5px 12px;" onclick="toggleStaffPartnershipView('table')">📋 Table View</button>
+          <button id="staffPartToggleCards" class="btn-outline" style="font-size: 0.78rem; padding: 5px 12px;" onclick="toggleStaffPartnershipView('cards')">🗂️ Dossier Cards</button>
         </div>
       </div>
 
-      <!-- Table View -->
       <div id="staffPartnershipTableView" class="leaderboard-table-wrap">
         <table class="leaderboard-table" style="font-size: 0.82rem;">
-          <thead>
-            <tr>
-              <th>University &amp; Country</th>
-              <th>Official Email</th>
-              <th>Dean / Contact Person</th>
-              <th>Formal Letter</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${partnershipsHTML}
-          </tbody>
+          <thead><tr><th>University &amp; Country</th><th>Official Email</th><th>Dean / Contact</th><th>Formal Letter</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${partnershipsHTML}</tbody>
         </table>
       </div>
 
-      <!-- Dossier Cards View -->
-      <div id="staffPartnershipCardsView" class="pillars-grid" style="display: none; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; margin-top: 14px;">
+      <div id="staffPartnershipCardsView" class="pillars-grid staff-partnership-cards-grid" style="display: none;">
         ${partnershipCardsHTML}
       </div>
     </div>
@@ -2832,90 +2878,43 @@ function renderStaffPortalContents() {
     <!-- Section 2: Student Innovator Pitch Verification -->
     <div style="margin-bottom: 28px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h4 style="font-size: 1.1rem; font-weight: 900; color: var(--navy);">
-          🎓 Innovator Pitch Verification &amp; Board of Honour Accreditation
-        </h4>
-        <span style="font-size: 0.75rem; color: #64748b;">Confirm pitching qualification &amp; safety requirements</span>
+        <h4 style="font-size: 1.1rem; font-weight: 900; color: var(--navy);">🎓 Innovator Pitch Verification &amp; Board of Honour Accreditation</h4>
+        <span style="font-size: 0.75rem; color: #64748b;">Approve verified inventors for the Board of Honour</span>
       </div>
       <div class="leaderboard-table-wrap">
         <table class="leaderboard-table" style="font-size: 0.82rem;">
-          <thead>
-            <tr>
-              <th>Student &amp; University</th>
-              <th>Pitched Food Innovation</th>
-              <th>Pitch Competition Attended</th>
-              <th>Board of Honour Status</th>
-              <th>Verification Control</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${innovatorsHTML}
-          </tbody>
+          <thead><tr><th>Student &amp; University</th><th>Pitched Innovation</th><th>Competition</th><th>Board Status</th><th>Control</th></tr></thead>
+          <tbody>${innovatorsHTML}</tbody>
         </table>
       </div>
     </div>
 
-    <!-- Section 3: Institutional Student Authenticity Verification Feed -->
+    <!-- Section 3: Institutional Student Authenticity Verifications -->
     <div style="margin-bottom: 24px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
         <div>
-          <h4 style="font-size: 1.1rem; font-weight: 900; color: var(--navy);">
-            🛡️ Institutional Student Authenticity Verifications (${(AppState.verificationDispatches || []).length})
-          </h4>
-          <span style="font-size: 0.75rem; color: #64748b;">Verification prompt emails dispatched to Campus Academic Registrars</span>
+          <h4 style="font-size: 1.1rem; font-weight: 900; color: var(--navy);">🛡️ Institutional Student Enrollment Verifications (${(AppState.verificationDispatches || []).length})</h4>
+          <span style="font-size: 0.75rem; color: #64748b;">Registrar enrollment prompts managed strictly by Staff Secretariat</span>
         </div>
       </div>
       <div class="leaderboard-table-wrap">
         <table class="leaderboard-table" style="font-size: 0.82rem;">
-          <thead>
-            <tr>
-              <th>Applicant &amp; Admission No.</th>
-              <th>Host Campus &amp; Registrar Email</th>
-              <th>Innovation Title &amp; Ref</th>
-              <th>Authenticity Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Applicant &amp; Admission No.</th><th>Campus &amp; Registrar</th><th>Subject &amp; Ref</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
             ${(AppState.verificationDispatches || []).map(disp => {
-              const isV = disp.status.toLowerCase().includes('verified');
+              const isV = (disp.status || '').toLowerCase().includes('verified');
               return `
                 <tr>
+                  <td><strong>${disp.authorName || disp.applicantName}</strong><br><span style="font-family: monospace; font-size: 0.74rem; color: #047857;">Adm: ${disp.admissionNo}</span></td>
+                  <td><strong>${disp.universityName}</strong><br><span style="font-size: 0.72rem; color: #0284c7; font-family: monospace;">${disp.recipientEmail}</span></td>
+                  <td><span>${disp.projectTitle || disp.purpose || 'Enrollment'}</span><br><span style="font-size: 0.7rem; color: #64748b; font-family: monospace;">${disp.referenceCode}</span></td>
+                  <td><span class="verification-badge-pill ${isV ? 'verified' : 'pending'}">${isV ? '🟢 Verified' : '🟡 Pending'}</span></td>
                   <td>
-                    <strong>${disp.authorName}</strong><br>
-                    <span style="font-family: monospace; font-size: 0.75rem; background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
-                      Adm: ${disp.admissionNo}
-                    </span>
-                  </td>
-                  <td>
-                    <strong>${disp.universityName}</strong><br>
-                    <span style="font-size: 0.72rem; color: #0284c7; font-family: monospace;">${disp.recipientEmail}</span>
-                  </td>
-                  <td>
-                    <span style="font-weight: 700; color: #0f172a;">${disp.projectTitle}</span><br>
-                    <span style="font-size: 0.7rem; color: #64748b; font-family: monospace;">Ref: ${disp.referenceCode}</span>
-                  </td>
-                  <td>
-                    <span class="verification-badge-pill ${isV ? 'verified' : 'pending'}">
-                      ${isV ? '🟢 Verified' : '🟡 Prompt Sent'}
-                    </span><br>
-                    <span style="font-size: 0.7rem; color: #64748b;">${disp.dispatchedAt}</span>
-                  </td>
-                  <td>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      <button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="openVerificationPromptModal('${disp.id}')">
-                        ✉️ View Prompt Email
-                      </button>
-                      ${!isV ? `
-                        <button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem;" onclick="confirmInstitutionalVerification('${disp.id}')">
-                          ✓ Confirm Authenticity
-                        </button>
-                      ` : ''}
-                    </div>
+                    ${!isV ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem;" onclick="confirmInstitutionalVerification('${disp.id}')">✓ Confirm Enrollment</button>` : '<span style="color:#059669;font-weight:700;font-size:0.74rem;">✓ Confirmed</span>'}
                   </td>
                 </tr>
               `;
-            }).join('') || '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 18px;">No verification prompts dispatched yet.</td></tr>'}
+            }).join('') || '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 18px;">No verification dispatches logged.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -2923,38 +2922,31 @@ function renderStaffPortalContents() {
   `;
 }
 
-function approveUniversityPartnership(reqId) {
-  const req = AppState.partnershipRequests.find(r => r.id === reqId);
-  if (!req) return;
-
-  req.status = "Approved";
-
-  // Add university to active consortium universities
-  const newUnivId = req.universityName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (!AppState.universities.some(u => u.id === newUnivId)) {
-    AppState.universities.push({
-      id: newUnivId,
-      name: req.universityName,
-      shortName: req.shortName || "NEW",
-      country: req.country,
-      city: req.city,
-      logoColor: "#0284c7",
-      totalPoints: 3000,
-      rank: AppState.universities.length + 1,
-      projectsCount: 0,
-      chapterLead: req.contactPerson,
-      strengths: "Newly Affiliated Partner Chapter"
-    });
+async function approveUniversityPartnership(reqId) {
+  if (!AppState.currentStaffUser) return;
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest(`/api/staff/partnerships/${reqId}/approve`, { method: 'POST' });
+      const req = AppState.partnershipRequests.find(r => r.id === reqId);
+      if (req) req.status = 'Approved';
+      if (res.university && !AppState.universities.some(u => u.id === res.university.id)) {
+        AppState.universities.push(res.university);
+      }
+      recalculateUniversityScores();
+      renderStaffPortalContents();
+      populateFilterDropdowns();
+      renderLeaderboard();
+      renderAbout();
+      showToast(`✓ Partnership approved and persisted to database!`);
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
   }
-
-  saveState();
-  recalculateUniversityScores();
+  const req = AppState.partnershipRequests.find(r => r.id === reqId);
+  if (req) req.status = "Approved";
   renderStaffPortalContents();
-  populateFilterDropdowns();
-  renderLeaderboard();
-  renderAbout();
-
-  showToast(`✓ Partnership approved! ${req.universityName} is now an active AFOSTECH chapter!`);
 }
 
 function toggleStaffPartnershipView(mode) {
@@ -2963,292 +2955,65 @@ function toggleStaffPartnershipView(mode) {
   const btnTable = document.getElementById('staffPartToggleTable');
   const btnCards = document.getElementById('staffPartToggleCards');
   if (!table || !cards) return;
-
   if (mode === 'table') {
-    table.style.display = 'block';
-    cards.style.display = 'none';
-    if (btnTable) btnTable.classList.add('active');
-    if (btnCards) btnCards.classList.remove('active');
+    table.style.display = 'block'; cards.style.display = 'none';
+    if (btnTable) btnTable.classList.add('active'); if (btnCards) btnCards.classList.remove('active');
   } else {
-    table.style.display = 'none';
-    cards.style.display = 'grid';
-    if (btnTable) btnTable.classList.remove('active');
-    if (btnCards) btnCards.classList.add('active');
+    table.style.display = 'none'; cards.style.display = 'grid';
+    if (btnTable) btnTable.classList.remove('active'); if (btnCards) btnCards.classList.add('active');
   }
 }
 
-function toggleInnovatorVerification(innId) {
-  const inn = AppState.innovators.find(i => i.id === innId);
-  if (!inn) return;
-
-  inn.verified = !inn.verified;
-  inn.boardOfHonour = inn.verified;
-
-  saveState();
-  renderStaffPortalContents();
-  renderInnovators();
-
-  showToast(`Updated verification for ${inn.name}: ${inn.verified ? 'Verified on Board of Honour' : 'Verification Revoked'}`);
-}
-
-function logoutStaff() {
-  AppState.currentStaffUser = null;
-  updateTopAuthStatus();
-  closeModal();
-  showToast("Logged out from Staff Official Portal.");
-}
-
-// ============================================================================
-// STUDENT INNOVATOR AUTH & DASHBOARD (SIGN IN, SIGN UP & MEMBER WORKSPACE)
-// ============================================================================
-function switchInnovatorAuthTab(tab) {
-  const signInBtn = document.getElementById('tabInnSignInBtn');
-  const signUpBtn = document.getElementById('tabInnSignUpBtn');
-  const signInPane = document.getElementById('innSignInPane');
-  const signUpPane = document.getElementById('innSignUpPane');
-  const modalTitle = document.getElementById('innAuthModalTitle');
-
-  if (tab === 'signin') {
-    if (signInBtn) signInBtn.classList.add('active');
-    if (signUpBtn) signUpBtn.classList.remove('active');
-    if (signInPane) signInPane.classList.add('active');
-    if (signUpPane) signUpPane.classList.remove('active');
-    if (modalTitle) modalTitle.innerText = "Innovator Sign In";
-  } else {
-    if (signUpBtn) signUpBtn.classList.add('active');
-    if (signInBtn) signInBtn.classList.remove('active');
-    if (signUpPane) signUpPane.classList.add('active');
-    if (signInPane) signInPane.classList.remove('active');
-    if (modalTitle) modalTitle.innerText = "Join AFOSTECH (Student Registration)";
-
-    // Ensure university dropdown in signup is populated
-    const univSelect = document.getElementById('innSignUpUniversity');
-    if (univSelect && (!univSelect.children || univSelect.children.length === 0)) {
-      univSelect.innerHTML = AppState.universities.map(u => `
-        <option value="${u.id}">${u.shortName} - ${u.name}</option>
-      `).join('');
+async function toggleInnovatorVerification(innId) {
+  if (!AppState.currentStaffUser) return;
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest(`/api/staff/innovators/${innId}/verify`, { method: 'POST' });
+      const inn = AppState.innovators.find(i => i.id === innId);
+      if (inn) { inn.verified = res.verified; inn.boardOfHonour = res.boardOfHonour; }
+      renderStaffPortalContents();
+      renderInnovators();
+      showToast(`Board of Honour status updated in database.`);
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
     }
   }
+  const inn = AppState.innovators.find(i => i.id === innId);
+  if (inn) { inn.verified = !inn.verified; inn.boardOfHonour = inn.verified; }
+  renderStaffPortalContents();
+  renderInnovators();
 }
 
-function quickSelectDemoInnovator(email) {
-  const input = document.getElementById('innSignInId');
-  const pwd = document.getElementById('innSignInPassword');
-  if (input) input.value = email;
-  if (pwd) pwd.value = 'innovator2026';
-  
-  // Auto trigger sign-in
-  const fakeEvent = { preventDefault: () => {} };
-  handleInnovatorSignIn(fakeEvent);
-}
-
-function openInnovatorAuthModal(initialTab = 'signin') {
-  if (AppState.currentStudentUser) {
-    openStudentInnovatorDashboard();
-    return;
-  }
-  const modal = document.getElementById('innovatorAuthModal');
-  const univSelect = document.getElementById('innSignUpUniversity');
-  if (univSelect) {
-    univSelect.innerHTML = AppState.universities.map(u => `
-      <option value="${u.id}">${u.shortName} - ${u.name}</option>
-    `).join('');
-  }
-
-  // Set default tab
-  switchInnovatorAuthTab(initialTab);
-
-  if (modal) {
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-function handleInnovatorSignIn(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  const idInput = document.getElementById('innSignInId');
-  const pwdInput = document.getElementById('innSignInPassword');
-  const idVal = idInput ? idInput.value.trim().toLowerCase() : '';
-  const pwdVal = pwdInput ? pwdInput.value.trim() : '';
-
-  if (!idVal) {
-    showToast("Please enter your student email or university admission number.");
-    return;
-  }
-
-  // Lookup student in AppState.innovators
-  const student = AppState.innovators.find(i => 
-    (i.email && i.email.toLowerCase() === idVal) || 
-    (i.admissionNo && i.admissionNo.toLowerCase() === idVal)
-  );
-
-  if (!student) {
-    showToast("No innovator account found with that email or admission number. Please click 'Join AFOSTECH' to register!");
-    switchInnovatorAuthTab('signup');
-    const nameField = document.getElementById('innSignUpName');
-    if (nameField) nameField.focus();
-    return;
-  }
-
-  // Check institutional verification status
-  if (student.membershipStatus === "Pending Institutional Confirmation") {
-    showToast(`⏳ Membership Pending: Your student account is currently awaiting enrollment confirmation from your university.`);
-    return;
-  }
-
-  // Authenticate student
-  AppState.currentStudentUser = student;
-  saveState();
-  updateTopAuthStatus();
-  closeModal();
-  showToast(`Welcome back, ${student.name}! Innovator workspace unlocked.`);
-  openStudentInnovatorDashboard();
-}
-
-function handleInnovatorSignUp(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  const name = document.getElementById('innSignUpName').value.trim();
-  const email = document.getElementById('innSignUpEmail').value.trim();
-  const admNo = document.getElementById('innSignUpAdm').value.trim();
-  const univId = document.getElementById('innSignUpUniversity').value;
-  const degree = document.getElementById('innSignUpDegree').value.trim();
-  const year = document.getElementById('innSignUpYear').value;
-  const password = document.getElementById('innSignUpPassword').value.trim() || 'student2026';
-
-  if (!name || !email || !admNo) {
-    showToast("Full name, student email, and authentic admission number are required!");
-    return;
-  }
-
-  // Check if student already exists
-  const existing = AppState.innovators.find(i => 
-    (i.email && i.email.toLowerCase() === email.toLowerCase()) || 
-    (i.admissionNo && i.admissionNo.toLowerCase() === admNo.toLowerCase())
-  );
-
-  if (existing) {
-    showToast(`An innovator account already exists for ${existing.name}. Switching to Sign In.`);
-    switchInnovatorAuthTab('signin');
-    const idInput = document.getElementById('innSignInId');
-    if (idInput) idInput.value = existing.email;
-    return;
-  }
-
-  const university = AppState.universities.find(u => u.id === univId);
-  const univName = university ? university.name : "Partner University";
-  const univShort = university ? university.shortName : "Affiliate University";
-  const registrarEmail = university ? (university.verificationEmail || `registrar.academic@${university.id}.ac.ke`) : `registrar.academic@${univId}.ac.ke`;
-  const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-  // Create new student record with Pending Institutional Confirmation
-  const newStudent = {
-    id: `inn-${Date.now()}`,
-    name: name,
-    email: email,
-    admissionNo: admNo,
-    universityId: univId,
-    universityName: univName,
-    universityShortName: univShort,
-    degree: degree || "B.Sc. Food Science & Technology",
-    yearOfStudy: year || "3rd Year",
-    password: password,
-    membershipStatus: "Pending Institutional Confirmation",
-    institutionalVerified: false,
-    verified: false, // Pitch cup verification for board of honour
-    boardOfHonour: false,
-    pitchedCompetition: "New Member — Eligible for Upcoming Pitch Cup",
-    productName: "New Product Formulation Pending",
-    productId: "",
-    bio: `${degree || 'Food Science'} student researcher at ${univShort}. Research focus: postharvest preservation and nutrient fortification.`,
-    cvFileName: `${name.replace(/\s+/g, '_')}_Academic_CV.pdf`,
-    cvFileSize: "210 KB",
-    publicSafetyCertified: false,
-    investorAsk: null,
-    inquiriesCount: 0,
-    registeredAt: nowStr
-  };
-
-  AppState.innovators.push(newStudent);
-
-  // Generate automated institutional verification prompt dispatch
-  const refCode = `AFOST-VER-REG-${Math.floor(1000 + Math.random() * 9000)}`;
-  const dispatch = {
-    id: `disp-reg-${Date.now()}`,
-    type: "Student Membership Verification",
-    applicantName: name,
-    authorName: name,
-    admissionNo: admNo,
-    degree: degree || "B.Sc. Food Science & Technology",
-    yearOfStudy: year || "3rd Year",
-    studentEmail: email,
-    universityId: univId,
-    universityName: univName,
-    universityShortName: univShort,
-    recipientEmail: registrarEmail,
-    ccEmails: `secretariat@afostech-students.org, dean.foodscience@${univId}.ac.ke`,
-    dispatchedAt: nowStr,
-    status: "Prompt Sent (Pending Confirmation)",
-    referenceCode: refCode,
-    purpose: "AFOSTECH Student Membership & Innovator Privilege Authentication",
-    studentId: newStudent.id,
-    remarks: "Student registration awaiting institutional admission authenticity confirmation."
-  };
-
-  if (!AppState.verificationDispatches) AppState.verificationDispatches = [];
-  AppState.verificationDispatches.unshift(dispatch);
-
-  saveState();
-  recalculateUniversityScores();
-  renderConsortiumStats();
-  closeModal();
-
-  showToast("🏛️ Registration submitted successfully! Your account application has been received.");
-}
-
-// Legacy fallback
-function handleInnovatorAuth(e) {
-  handleInnovatorSignUp(e);
-}
-
-function quickDemoStudentLogin() {
-  quickSelectDemoInnovator('f.wanjiru@students.jkuat.ac.ke');
-}
-
+// ============================================================================
+// STUDENT INNOVATOR WORKSPACE DASHBOARD
+// ============================================================================
 function openStudentInnovatorDashboard() {
   const modal = document.getElementById('innovatorDashboardModal');
   const body = document.getElementById('innovatorDashboardBody');
-  if (!modal || !body || !AppState.currentStudentUser) return;
-
   const user = AppState.currentStudentUser;
+  if (!modal || !body || !user) return;
 
-  // Query my submitted projects and my theses
-  const myProjects = (AppState.projects || []).filter(p => 
-    p.leadAdmissionNo === user.admissionNo || 
-    p.authorName === user.name ||
+  const myProjects = (AppState.projects || []).filter(p =>
+    p.leadAdmissionNo === user.admissionNo ||
     (p.authors && p.authors.some(a => a.admissionNo === user.admissionNo || a.name === user.name))
   );
-
-  const myTheses = (AppState.theses || []).filter(t => 
-    t.authorAdmissionNo === user.admissionNo || 
-    t.author === user.name
+  const myTheses = (AppState.theses || []).filter(t =>
+    t.authorAdmissionNo === user.admissionNo || t.author === user.name
   );
 
   body.innerHTML = `
     <div style="background: white; border-radius: 12px; padding: 24px; border: 1.5px solid var(--border-color); margin-bottom: 24px;">
-      
-      <!-- Profile Header -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
         <div>
           <h3 style="font-size: 1.4rem; font-weight: 900; color: var(--navy); margin-bottom: 3px;">${user.name}</h3>
           <div style="font-size: 0.88rem; color: var(--primary); font-weight: 800;">
-            ${user.universityName} • Admission No: <span style="font-family: monospace; background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">${user.admissionNo}</span>
+            ${user.universityName || ''} &bull; Admission No: <span style="font-family: monospace; background: #ecfdf5; color: #047857; padding: 2px 8px; border-radius: 4px;">${user.admissionNo || ''}</span>
           </div>
-          <div style="font-size: 0.82rem; color: #64748b; margin-top: 2px;">${user.degree} (${user.yearOfStudy}) • Official Email: ${user.email}</div>
+          <div style="font-size: 0.82rem; color: #64748b; margin-top: 2px;">${user.degree || ''} (${user.yearOfStudy || ''}) &bull; ${user.email}</div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-          
           ${user.verified ? `
             <span class="verified-badge" style="font-size: 0.82rem; padding: 4px 12px;">★ Pitch Verified (Board of Honour)</span>
           ` : `
@@ -3259,88 +3024,41 @@ function openStudentInnovatorDashboard() {
         </div>
       </div>
 
-      <!-- Pitch Certification Status -->
-      <div style="background: #f8fafc; border-radius: 10px; padding: 14px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-        <div style="font-size: 0.82rem; font-weight: 800; color: #1e293b; margin-bottom: 4px;">Pitch Verification &amp; Clearance Status:</div>
-        <div style="font-size: 0.88rem; color: #475569;">
-          ${user.pitchedCompetition || 'Standard Collegiate Member'}
-        </div>
-        ${!user.verified ? `
-          <div style="font-size: 0.78rem; color: #b45309; margin-top: 6px;">
-            ℹ️ To earn the <strong>Verified Innovator Seal</strong> on the public Board of Honour, submit a prototype to an official AFOSTECH pitching competition for food safety and sensory evaluation.
-          </div>
-        ` : `
-          <div style="font-size: 0.78rem; color: #059669; margin-top: 6px;">
-            ✓ Your food formulation has passed all safety and sensory requirements for public production!
-          </div>
-        `}
-      </div>
-
-      <!-- ================================================================= -->
-      <!-- EXCLUSIVE INNOVATOR SUBMISSION HUB (MEMBER PRIVILEGE)             -->
-      <!-- ================================================================= -->
       <div class="innovator-submission-hub">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px;">
-          <h4 style="font-size: 1.15rem; font-weight: 900; color: #065f46; display: flex; align-items: center; gap: 8px;">
-            <span>🚀</span> Innovator Submissions Hub
-          </h4>
-          <span style="background: #dcfce7; color: #166534; font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 9999px;">
-            Exclusive Member Privilege
-          </span>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+          <h4 style="font-size: 1.15rem; font-weight: 900; color: #065f46;">🚀 Innovator Submissions &amp; Photo Studio</h4>
         </div>
-        <p style="font-size: 0.82rem; color: #334155; margin-bottom: 16px; line-height: 1.45;">
-          Submitting food innovations and academic research theses is <strong>exclusively available from your authenticated innovator profile</strong>. Submissions made here are automatically certified with your verified student identity and university affiliation.
-        </p>
 
-        <!-- Two Quick Action Launchers -->
         <div class="innovator-hub-grid">
-          
-          <!-- Card 1: Submit Innovation -->
           <div class="innovator-hub-card">
             <div>
-              <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">
-                🔬
-              </div>
+              <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">🔬</div>
               <h4>Submit Food Innovation</h4>
-              <p>
-                Publish a formulated laboratory prototype. Provide sensory testing ratings, list collegiate team co-researchers, and attach your dissertation document.
-              </p>
+              <p>Publish a formulated prototype, upload its photo, and attach your research dissertation.</p>
             </div>
             <button type="button" class="btn-primary" onclick="closeModal(); openSubmitModal();" style="width: 100%; justify-content: center;">
               + Launch Innovation Form →
             </button>
           </div>
 
-          <!-- Card 2: Submit Research Thesis -->
           <div class="innovator-hub-card">
             <div>
-              <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
-                📚
-              </div>
+              <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">📚</div>
               <h4>Submit Research Thesis</h4>
-              <p>
-                Upload an undergraduate or postgraduate dissertation to the open-access continental repository for peer citations, downloads, and academic review.
-              </p>
+              <p>Upload your dissertation to the open-access repository for peer citations and reviews.</p>
             </div>
-            <button type="button" class="btn-primary" onclick="closeModal(); openSubmitThesisModal();" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #059669 0%, #0284c7 100%);">
+            <button type="button" class="btn-primary" onclick="closeModal(); openSubmitThesisModal();" style="width: 100%; justify-content: center; background: linear-gradient(135deg, #059669, #0284c7);">
               + Upload Research Thesis →
             </button>
           </div>
-
         </div>
 
-        <!-- My Authored Submissions Roster -->
         <div style="margin-top: 22px; background: #ffffff; border-radius: 12px; padding: 16px; border: 1px solid #cbd5e1;">
-          <h5 style="font-size: 0.92rem; font-weight: 800; color: #0f172a; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <span>📋 My Authored Submissions (${myProjects.length + myTheses.length})</span>
-            <span style="font-size: 0.74rem; color: #64748b;">Innovations &bull; Dissertations</span>
+          <h5 style="font-size: 0.92rem; font-weight: 800; color: #0f172a; margin-bottom: 12px;">
+            📋 My Authored Submissions (${myProjects.length + myTheses.length})
           </h5>
-
           ${myProjects.length === 0 && myTheses.length === 0 ? `
-            <div style="text-align: center; padding: 18px; color: #64748b; font-size: 0.84rem;">
-              You have not submitted any food prototypes or research dissertations yet.<br>
-              <span style="color: #059669; font-weight: 700;">Use the buttons above to publish your first verified submission!</span>
-            </div>
+            <div style="text-align: center; padding: 18px; color: #64748b; font-size: 0.84rem;">No authored submissions yet.</div>
           ` : `
             <div>
               ${myProjects.map(p => `
@@ -3349,153 +3067,93 @@ function openStudentInnovatorDashboard() {
                     <img src="${p.image}" alt="${p.title}" style="width: 58px; height: 44px; object-fit: cover; border-radius: 6px; border: 1.5px solid #cbd5e1; background: #f8fafc; flex-shrink: 0;">
                     <div style="min-width: 0;">
                       <strong style="color: #0f172a; font-size: 0.9rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.title}</strong>
-                      <div style="font-size: 0.74rem; color: #64748b;">
-                        Category: ${p.categoryLabel || p.category} &bull; University: ${p.universityName}
-                      </div>
+                      <div style="font-size: 0.74rem; color: #64748b;">Category: ${p.categoryLabel || p.category} &bull; ${p.universityName}</div>
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem; background: linear-gradient(135deg, #059669, #047857); display: inline-flex; align-items: center; gap: 4px;" onclick="openProductImageEditor('${p.id}')" title="Upload new photo or edit/crop this product image">
-                      🖼️ Upload / Edit Photo
-                    </button>
-                    <button class="btn-outline" style="padding: 4px 10px; font-size: 0.74rem;" onclick="closeModal(); openProjectDetail('${p.id}');">
-                      View
-                    </button>
+                    <button class="btn-primary" style="padding: 4px 10px; font-size: 0.74rem;" onclick="openProductImageEditor('${p.id}')">🖼️ Upload / Edit Photo</button>
+                    <button class="btn-outline" style="padding: 4px 10px; font-size: 0.74rem;" onclick="closeModal(); openProjectDetail('${p.id}');">View</button>
                   </div>
                 </div>
               `).join('')}
-
               ${myTheses.map(t => `
                 <div class="submission-record-row">
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 1.2rem;">📚</span>
-                    <div>
-                      <strong style="color: #0f172a;">${t.title}</strong>
-                      <div style="font-size: 0.74rem; color: #64748b;">
-                        Dissertation &bull; ${t.file ? t.file.fileName : 'Thesis.pdf'} &bull; ${(t.comments || []).length} Peer Reviews
-                      </div>
-                    </div>
+                    <div><strong style="color: #0f172a;">${t.title}</strong><div style="font-size: 0.74rem; color: #64748b;">Dissertation &bull; ${(t.comments || []).length} Peer Reviews</div></div>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">
-                      ✓ Open Access
-                    </span>
-                    <button class="btn-outline" style="padding: 4px 10px; font-size: 0.74rem;" onclick="closeModal(); openThesisDetail('${t.id}');">
-                      Read Thesis
-                    </button>
-                  </div>
+                  <button class="btn-outline" style="padding: 4px 10px; font-size: 0.74rem;" onclick="closeModal(); openThesisDetail('${t.id}');">Read Thesis</button>
                 </div>
               `).join('')}
             </div>
           `}
         </div>
-
       </div>
 
-      <!-- Edit Profile & CV -->
-      <form id="editInnovatorProfileForm">
-        <h4 style="font-size: 1.05rem; font-weight: 900; margin-bottom: 12px; color: var(--navy);">Update Professional Profile &amp; CV</h4>
+      <form id="editInnovatorProfileForm" style="margin-top: 20px;">
+        <h4 style="font-size: 1.05rem; font-weight: 900; margin-bottom: 12px; color: var(--navy);">Update Professional Profile &amp; Investor Ask</h4>
         <div class="form-group">
           <label class="form-label">Research Bio / Expertise</label>
           <textarea id="editInnBio" class="form-control" rows="3">${user.bio || ''}</textarea>
         </div>
-        
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Academic CV Attachment</label>
-            <input type="file" id="editInnCV" class="form-control">
-            <span style="font-size: 0.74rem; color: #64748b;">Current: ${user.cvFileName || 'None uploaded'}</span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Degree / Field</label>
-            <input type="text" id="editInnDegree" class="form-control" value="${user.degree || ''}">
-          </div>
+          <div class="form-group"><label class="form-label">Degree / Field</label><input type="text" id="editInnDegree" class="form-control" value="${user.degree || ''}"></div>
+          <div class="form-group"><label class="form-label">Ask Title</label><input type="text" id="editAskTitle" class="form-control" value="${user.investorAsk ? user.investorAsk.title : ''}"></div>
         </div>
-
-        <h4 style="font-size: 1.05rem; font-weight: 900; margin-top: 18px; margin-bottom: 8px; color: var(--navy);">
-          Investor "Asks" (Funding &amp; Machinery to Actualize Product)
-        </h4>
-        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">
-          State what seed capital, laboratory equipment, or pilot manufacturing assistance you need so agribusiness investors can open conversations.
-        </p>
-
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Ask Title</label>
-            <input type="text" id="editAskTitle" class="form-control" placeholder="e.g. Seed Grant for Pilot Vacuum Dryer" value="${user.investorAsk ? user.investorAsk.title : ''}">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Amount / Valuation Needed</label>
-            <input type="text" id="editAskAmount" class="form-control" placeholder="e.g. $15,000" value="${user.investorAsk ? user.investorAsk.amountNeeded : ''}">
-          </div>
+          <div class="form-group"><label class="form-label">Amount Needed</label><input type="text" id="editAskAmount" class="form-control" value="${user.investorAsk ? user.investorAsk.amountNeeded : ''}"></div>
+          <div class="form-group"><label class="form-label">New Password (Optional)</label><input type="password" id="editInnPassword" class="form-control" placeholder="Leave blank to keep current"></div>
         </div>
-
         <div class="form-group">
-          <label class="form-label">Ask Description &amp; Deliverables</label>
-          <textarea id="editAskDesc" class="form-control" rows="2" placeholder="Explain how the funds/equipment will assist commercialization...">${user.investorAsk ? user.investorAsk.description : ''}</textarea>
+          <label class="form-label">Ask Description</label>
+          <textarea id="editAskDesc" class="form-control" rows="2">${user.investorAsk ? user.investorAsk.description : ''}</textarea>
         </div>
-
-        <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label">Portal Security Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="editInnPassword" class="form-control" value="${user.password || 'innovator2026'}" placeholder="Enter new password to update">
-            <button type="button" class="btn-password-toggle" data-target="editInnPassword" aria-label="Show password" title="Show password">
-              <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <svg class="eye-icon eye-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-          <button type="button" class="btn-outline" onclick="logoutStudent()">Log Out</button>
+          <button type="button" class="btn-outline" onclick="logoutCurrentUser()">Sign Out</button>
           <button type="submit" class="btn-primary">Save Innovator Profile →</button>
         </div>
       </form>
     </div>
   `;
 
-  document.getElementById('editInnovatorProfileForm').addEventListener('submit', (e) => {
+  document.getElementById('editInnovatorProfileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    user.bio = document.getElementById('editInnBio').value.trim();
-    user.degree = document.getElementById('editInnDegree').value.trim();
-    const newPwd = document.getElementById('editInnPassword');
-    if (newPwd && newPwd.value.trim()) user.password = newPwd.value.trim();
-    
+    const bio = document.getElementById('editInnBio').value.trim();
+    const degree = document.getElementById('editInnDegree').value.trim();
+    const password = document.getElementById('editInnPassword').value.trim();
     const askTitle = document.getElementById('editAskTitle').value.trim();
     const askAmount = document.getElementById('editAskAmount').value.trim();
     const askDesc = document.getElementById('editAskDesc').value.trim();
+    const investorAsk = (askTitle && askAmount)
+      ? { title: askTitle, amountNeeded: askAmount, category: "Commercial Scale-up", description: askDesc, contactEmail: user.email }
+      : user.investorAsk;
 
-    if (askTitle && askAmount) {
-      user.investorAsk = {
-        title: askTitle,
-        amountNeeded: askAmount,
-        category: "Commercial Scale-up",
-        description: askDesc,
-        contactEmail: user.email
-      };
+    if (AppState.isBackendOnline) {
+      try {
+        const res = await apiRequest('/api/innovator/profile', {
+          method: 'PUT',
+          body: JSON.stringify({ bio, degree, investorAsk, ...(password ? { password } : {}) })
+        });
+        applyAuthenticatedUser(res.user);
+        const idx = AppState.innovators.findIndex(i => i.id === res.user.id);
+        if (idx !== -1) AppState.innovators[idx] = res.user;
+      } catch (err) {
+        showToast('⚠️ ' + err.message);
+        return;
+      }
+    } else {
+      user.bio = bio;
+      user.degree = degree;
+      user.investorAsk = investorAsk;
     }
 
-    saveState();
     renderInnovators();
-    showToast("Innovator profile and investor asks updated!");
+    showToast("Innovator profile updated in database!");
     closeModal();
   });
 
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
-}
-
-function logoutStudent() {
-  AppState.currentStudentUser = null;
-  updateTopAuthStatus();
-  closeModal();
-  showToast("Logged out from Innovator Portal.");
 }
 
 // ============================================================================
@@ -3518,7 +3176,7 @@ function openInvestorInquiryModal(innovatorId) {
   }
 }
 
-function handleInvestorInquirySubmit(e) {
+async function handleInvestorInquirySubmit(e) {
   e.preventDefault();
   const innId = document.getElementById('investorTargetId').value;
   const orgName = document.getElementById('invOrgName').value.trim();
@@ -3526,14 +3184,24 @@ function handleInvestorInquirySubmit(e) {
   const proposal = document.getElementById('invProposal').value.trim();
 
   const inn = AppState.innovators.find(i => i.id === innId);
-  if (inn) {
+  if (AppState.isBackendOnline) {
+    try {
+      const res = await apiRequest('/api/inquiries', {
+        method: 'POST',
+        body: JSON.stringify({ innovatorId: innId, orgName, contactEmail, proposal })
+      });
+      if (inn) inn.inquiriesCount = res.inquiriesCount;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
+    }
+  } else if (inn) {
     inn.inquiriesCount = (inn.inquiriesCount || 0) + 1;
-    saveState();
   }
 
   closeModal();
   e.target.reset();
-  showToast(`💼 Conversation opened with ${inn ? inn.name : 'the innovator'}! Message dispatched to ${inn ? inn.email : 'innovator'}.`);
+  showToast(`💼 Conversation opened with ${inn ? inn.name : 'the innovator'}!`);
   renderInnovators();
 }
 
@@ -3777,60 +3445,26 @@ function openVerificationForProject(projectId) {
   }
 }
 
-function confirmInstitutionalVerification(dispatchId) {
-  const dispatch = (AppState.verificationDispatches || []).find(d => d.id === dispatchId || d.referenceCode === dispatchId);
-  if (!dispatch) return;
-
-  const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  dispatch.status = "Institutionally Verified & Authenticated";
-  dispatch.confirmedAt = nowStr;
-  dispatch.confirmedBy = `Office of the Academic Registrar - ${dispatch.universityName}`;
-
-  let activatedStudent = null;
-  if (dispatch.type === "Student Membership Verification" || dispatch.studentId) {
-    activatedStudent = AppState.innovators.find(i => 
-      (dispatch.studentId && i.id === dispatch.studentId) || 
-      (dispatch.admissionNo && i.admissionNo === dispatch.admissionNo) ||
-      (dispatch.applicantName && i.name === dispatch.applicantName)
-    );
-
-    if (activatedStudent) {
-      activatedStudent.membershipStatus = "Authenticated Member";
-      activatedStudent.institutionalVerified = true;
-      activatedStudent.verified = true;
-      activatedStudent.membershipApprovedAt = nowStr;
-      AppState.currentStudentUser = activatedStudent;
-      updateTopAuthStatus();
+async function confirmInstitutionalVerification(dispatchId) {
+  if (!AppState.currentStaffUser) return;
+  if (AppState.isBackendOnline) {
+    try {
+      await apiRequest(`/api/staff/verifications/${dispatchId}/confirm`, { method: 'POST' });
+      await fetchStaffDashboardData();
+      const bootstrapData = await apiRequest('/api/bootstrap');
+      AppState.innovators = bootstrapData.innovators || AppState.innovators;
+      renderStaffPortalContents();
+      renderInnovators();
+      showToast('🎉 Student enrollment verified and account activated in database!');
+      return;
+    } catch (err) {
+      showToast('⚠️ ' + err.message);
+      return;
     }
   }
-
-  // Find corresponding project if project submission dispatch
-  const proj = AppState.projects.find(p => p.id === dispatch.projectId || p.leadAdmissionNo === dispatch.admissionNo);
-  if (proj) {
-    if (!proj.institutionalVerification) proj.institutionalVerification = {};
-    proj.institutionalVerification.status = "Institutionally Verified & Authenticated";
-    proj.institutionalVerification.confirmedAt = nowStr;
-    proj.institutionalVerification.confirmedBy = dispatch.confirmedBy;
-  }
-
-  saveState();
-
-  if (activatedStudent) {
-    showToast(`🎉 Campus Authenticity Confirmed! Welcome to AFOSTECH, ${activatedStudent.name}! You have officially joined the organization and your innovator profile is activated.`);
-    closeModal();
-    openStudentInnovatorDashboard();
-  } else {
-    showToast(`🎉 Campus Authenticity Confirmed! Admission No. ${dispatch.admissionNo} verified by ${dispatch.universityName} Registrar.`);
-    openVerificationPromptModal(dispatch.id);
-  }
-
-  // If staff portal is open, refresh it
-  const staffModal = document.getElementById('staffPortalModal');
-  if (staffModal && staffModal.classList.contains('active')) {
-    renderStaffPortalContents();
-  }
-
-  renderCurrentView();
+  const dispatch = (AppState.verificationDispatches || []).find(d => d.id === dispatchId);
+  if (dispatch) dispatch.status = 'Institutionally Verified & Authenticated';
+  renderStaffPortalContents();
 }
 
 function downloadVerificationNotice(ref) {
@@ -3868,545 +3502,14 @@ function showToast(message) {
 
 
 // ============================================================================
-// TRY PRODUCT & COMMERCIAL SALES ENGINE
+// TRY PRODUCT REDIRECT TO STANDALONE FEED & MARKETPLACE APP FOLDER
 // ============================================================================
-
 function openTryProductModal(projectId) {
-  const project = AppState.projects.find(p => p.id === projectId);
-  if (!project) return;
-
-  AppState.activeTryProjectId = projectId;
-  AppState.activeTryTier = 'single';
-  AppState.activeTryQty = 1;
-
-  // Set Modal Header
-  const titleEl = document.getElementById('tryModalProductTitle');
-  if (titleEl) titleEl.textContent = 'Try ' + project.title;
-
-  const imgEl = document.getElementById('tryModalProductImg');
-  if (imgEl) imgEl.src = project.image;
-
-  const origin = (project.commercial && project.commercial.originCountry) ? project.commercial.originCountry : 'Kenya';
-  const badgeEl = document.getElementById('tryModalOriginBadge');
-  if (badgeEl) {
-    badgeEl.innerHTML = 'Formulated by <strong>' + project.universityName + '</strong> Researchers &bull; 📍 Origin: <strong>' + origin + '</strong>';
-  }
-
-  // Set Unit details
-  const comm = project.commercial || {
-    singleUnit: 'Single Pack (150g)',
-    singlePriceUSD: 2.00,
-    singlePriceFormatted: '$2.00',
-    wholesaleUnit: 'Wholesale Box (24 Units)',
-    wholesalePriceUSD: 40.00,
-    wholesalePriceFormatted: '$40.00',
-    originCountry: 'Kenya',
-    originCity: 'Nairobi',
-    stockists: []
-  };
-
-  const singleNameEl = document.getElementById('trySingleUnitName');
-  if (singleNameEl) singleNameEl.textContent = comm.singleUnit;
-
-  const singlePriceEl = document.getElementById('trySingleUnitPrice');
-  if (singlePriceEl) singlePriceEl.textContent = comm.singlePriceFormatted || ('$' + comm.singlePriceUSD.toFixed(2));
-
-  const wholeNameEl = document.getElementById('tryWholesaleUnitName');
-  if (wholeNameEl) wholeNameEl.textContent = comm.wholesaleUnit;
-
-  const wholePriceEl = document.getElementById('tryWholesaleUnitPrice');
-  if (wholePriceEl) wholePriceEl.textContent = comm.wholesalePriceFormatted || ('$' + comm.wholesalePriceUSD.toFixed(2));
-
-  // Reset Quantity
-  const qtyInput = document.getElementById('tryOrderQty');
-  if (qtyInput) qtyInput.value = 1;
-
-  // Set default buyer country
-  const countrySelect = document.getElementById('tryBuyerCountry');
-  if (countrySelect && !countrySelect.value) {
-    countrySelect.value = comm.originCountry;
-  }
-
-  // Populate Stockists list
-  renderStockistsList();
-
-  // Reset tab to Order Online
-  switchTryProductTab('order');
-
-  // Trigger location change calculation
-  onBuyerLocationChange();
-
-  const modal = document.getElementById('tryProductModal');
-  if (modal) {
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-}
-
-function switchTryProductTab(tab) {
-  const btnOrder = document.getElementById('tryTabBtnOrder');
-  const btnStockists = document.getElementById('tryTabBtnStockists');
-  const contentOrder = document.getElementById('tryTabContentOrder');
-  const contentStockists = document.getElementById('tryTabContentStockists');
-
-  if (!btnOrder || !btnStockists || !contentOrder || !contentStockists) return;
-
-  if (tab === 'order') {
-    btnOrder.classList.add('active');
-    btnStockists.classList.remove('active');
-    contentOrder.style.display = 'block';
-    contentStockists.style.display = 'none';
-  } else {
-    btnOrder.classList.remove('active');
-    btnStockists.classList.add('active');
-    contentOrder.style.display = 'none';
-    contentStockists.style.display = 'block';
-    renderStockistsList();
-  }
-}
-
-function onBuyerLocationChange() {
-  const project = AppState.projects.find(p => p.id === AppState.activeTryProjectId);
-  if (!project) return;
-
-  const comm = project.commercial || {
-    originCountry: 'Kenya',
-    singlePriceUSD: 2.00,
-    wholesalePriceUSD: 40.00,
-    wholesaleUnit: 'Wholesale Box'
-  };
-
-  const countrySelect = document.getElementById('tryBuyerCountry');
-  if (!countrySelect) return;
-  const buyerCountry = countrySelect.value;
-  const isCrossBorder = buyerCountry.trim().toLowerCase() !== comm.originCountry.trim().toLowerCase();
-
-  const alertBox = document.getElementById('tryCrossBorderAlert');
-  const alertText = document.getElementById('tryCrossBorderAlertText');
-  const tierCardSingle = document.getElementById('tierCardSingle');
-  const radioSingle = document.getElementById('tryTierRadioSingle');
-  const badgeSingle = document.getElementById('trySingleDomesticBadge');
-
-  if (isCrossBorder) {
-    // Cross-border order: MUST BE WHOLESALE
-    if (alertBox) alertBox.style.display = 'flex';
-    if (alertText) {
-      alertText.innerHTML = 'The product is manufactured and dispatched from <strong>' + comm.originCountry + '</strong> (' + project.universityName + '), while your delivery destination is <strong>' + buyerCountry + '</strong>.<br>To ensure phytosanitary clearance and cross-border freight viability, <strong>the minimum purchase is the least wholesale unit: ' + comm.wholesaleUnit + '</strong>.<br>Retail sample packs are restricted to domestic dispatch only.';
-    }
-    
-    // Disable single tier
-    if (tierCardSingle) tierCardSingle.classList.add('disabled');
-    if (radioSingle) radioSingle.disabled = true;
-    if (badgeSingle) {
-      badgeSingle.textContent = '⚠️ Domestic Only (Unavailable)';
-      badgeSingle.style.color = '#dc2626';
-    }
-
-    // Auto switch to wholesale
-    AppState.activeTryTier = 'wholesale';
-    selectOrderTier('wholesale');
-  } else {
-    // Domestic order: both tiers available
-    if (alertBox) alertBox.style.display = 'none';
-    if (tierCardSingle) tierCardSingle.classList.remove('disabled');
-    if (radioSingle) radioSingle.disabled = false;
-    if (badgeSingle) {
-      badgeSingle.textContent = '✓ Domestic Dispatch';
-      badgeSingle.style.color = '#047857';
-    }
-  }
-
-  calculateOrderPricing();
-}
-
-function selectOrderTier(tier) {
-  const project = AppState.projects.find(p => p.id === AppState.activeTryProjectId);
-  if (!project) return;
-  const comm = project.commercial || { originCountry: 'Kenya' };
-  const countrySelect = document.getElementById('tryBuyerCountry');
-  const buyerCountry = countrySelect ? countrySelect.value : 'Kenya';
-  const isCrossBorder = buyerCountry.trim().toLowerCase() !== comm.originCountry.trim().toLowerCase();
-
-  if (tier === 'single' && isCrossBorder) {
-    showToast('Cross-border orders require the minimum wholesale unit due to international freight regulations.');
-    return;
-  }
-
-  AppState.activeTryTier = tier;
-  const cardSingle = document.getElementById('tierCardSingle');
-  const cardWholesale = document.getElementById('tierCardWholesale');
-  const radioSingle = document.getElementById('tryTierRadioSingle');
-  const radioWholesale = document.getElementById('tryTierRadioWholesale');
-
-  if (tier === 'single') {
-    if (cardSingle) cardSingle.classList.add('selected');
-    if (cardWholesale) cardWholesale.classList.remove('selected');
-    if (radioSingle) radioSingle.checked = true;
-    const qtyLabel = document.getElementById('tryQtyLabel');
-    if (qtyLabel) qtyLabel.textContent = 'Number of Sample Packs:';
-    const qtySubtext = document.getElementById('tryQtySubtext');
-    if (qtySubtext) qtySubtext.textContent = 'Min. 1 pack (Domestic courier)';
-  } else {
-    if (cardSingle) cardSingle.classList.remove('selected');
-    if (cardWholesale) cardWholesale.classList.add('selected');
-    if (radioWholesale) radioWholesale.checked = true;
-    const qtyLabel = document.getElementById('tryQtyLabel');
-    if (qtyLabel) qtyLabel.textContent = 'Number of Wholesale Units:';
-    const qtySubtext = document.getElementById('tryQtySubtext');
-    if (qtySubtext) qtySubtext.textContent = 'Min. 1 wholesale unit (' + (comm.wholesaleUnit || 'Carton/Bale') + ')';
-  }
-
-  calculateOrderPricing();
-}
-
-function updateOrderQuantity(delta) {
-  let qty = AppState.activeTryQty + delta;
-  if (qty < 1) qty = 1;
-  if (qty > 50) qty = 50;
-  AppState.activeTryQty = qty;
-  const qtyInput = document.getElementById('tryOrderQty');
-  if (qtyInput) qtyInput.value = qty;
-  calculateOrderPricing();
-}
-
-function calculateOrderPricing() {
-  const project = AppState.projects.find(p => p.id === AppState.activeTryProjectId);
-  if (!project) return;
-
-  const comm = project.commercial || {
-    singlePriceUSD: 2.00,
-    wholesalePriceUSD: 40.00,
-    originCountry: 'Kenya',
-    wholesaleUnit: 'Wholesale Box',
-    singleUnit: 'Sample Pack'
-  };
-
-  const countrySelect = document.getElementById('tryBuyerCountry');
-  const buyerCountry = countrySelect ? countrySelect.value : 'Kenya';
-  const isCrossBorder = buyerCountry.trim().toLowerCase() !== comm.originCountry.trim().toLowerCase();
-  const qty = AppState.activeTryQty || 1;
-
-  let unitPrice = AppState.activeTryTier === 'wholesale' ? comm.wholesalePriceUSD : comm.singlePriceUSD;
-  let subtotal = unitPrice * qty;
-  
-  // Shipping calculation:
-  // Domestic: $2.50 base
-  // Cross-Border: $14.50 base freight + $3.00 per additional unit
-  let shippingFee = isCrossBorder ? (14.50 + (qty - 1) * 3.00) : 2.50;
-  let total = subtotal + shippingFee;
-
-  // AFOSTECH 15% / Student Innovators 85% Split of subtotal
-  let orgShare = subtotal * 0.15;
-  let studentShare = subtotal * 0.85;
-
-  const tierName = AppState.activeTryTier === 'wholesale' ? (comm.wholesaleUnit || 'Wholesale Unit') : (comm.singleUnit || 'Sample Pack');
-
-  const subLabel = document.getElementById('trySummaryItemLabel');
-  if (subLabel) subLabel.textContent = 'Subtotal (' + qty + 'x ' + tierName + '):';
-
-  const subVal = document.getElementById('trySummarySubtotal');
-  if (subVal) subVal.textContent = '$' + subtotal.toFixed(2);
-  
-  const shipLabel = document.getElementById('trySummaryShippingLabel');
-  if (shipLabel) shipLabel.textContent = isCrossBorder ? ('🌍 Cross-Border Air/Road Freight to ' + buyerCountry + ':') : ('🚚 Standard Domestic Courier (' + buyerCountry + '):');
-
-  const shipVal = document.getElementById('trySummaryShipping');
-  if (shipVal) shipVal.textContent = '$' + shippingFee.toFixed(2);
-  
-  const totVal = document.getElementById('trySummaryTotal');
-  if (totVal) totVal.textContent = '$' + total.toFixed(2);
-
-  const studentSplitVal = document.getElementById('trySplitStudent');
-  if (studentSplitVal) studentSplitVal.textContent = '$' + studentShare.toFixed(2);
-
-  const orgSplitVal = document.getElementById('trySplitOrg');
-  if (orgSplitVal) orgSplitVal.textContent = '$' + orgShare.toFixed(2);
-  
-  const submitBtn = document.getElementById('trySubmitOrderBtn');
-  if (submitBtn) submitBtn.innerHTML = '💳 Confirm Order &amp; Pay ($' + total.toFixed(2) + ') →';
-}
-
-function renderStockistsList() {
-  const container = document.getElementById('tryStockistsList');
-  if (!container) return;
-
-  const project = AppState.projects.find(p => p.id === AppState.activeTryProjectId);
-  if (!project) return;
-
-  const comm = project.commercial;
-  const stockists = (comm && comm.stockists) ? comm.stockists : [];
-  const filterSelect = document.getElementById('tryStockistFilterCountry');
-  const filterVal = filterSelect ? filterSelect.value : 'all';
-
-  const filtered = filterVal === 'all' 
-    ? stockists 
-    : stockists.filter(s => s.country && s.country.toLowerCase() === filterVal.toLowerCase());
-
-  if (filtered.length === 0) {
-    container.innerHTML = `
-      <div style="padding: 24px; text-align: center; background: #f8fafc; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
-        <span style="font-size: 2rem;">🏬</span>
-        <h5 style="font-size: 1rem; font-weight: 800; color: var(--navy); margin: 6px 0;">No Physical Outlets in ${filterVal}</h5>
-        <p style="font-size: 0.82rem; color: #64748b; max-width: 440px; margin: 0 auto 14px;">
-          This prototype is currently stocked in <strong>${comm ? comm.originCountry : 'Kenya'}</strong> pilot stores. Please select <strong>🚚 Order Online & Ship to Me</strong> to receive the product via courier or cross-border freight.
-        </p>
-        <button class="btn-primary" style="font-size: 0.82rem; padding: 6px 16px;" onclick="switchTryProductTab('order')">
-          Order Online Instead →
-        </button>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = filtered.map(s => `
-    <div class="stockist-card">
-      <div class="stockist-meta">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <h5>${s.name}</h5>
-          <span class="stockist-badge in-stock">${s.status || 'In Stock'}</span>
-        </div>
-        <p>📍 <strong>${s.address}</strong> (${s.city}, ${s.country})</p>
-        <div class="stockist-hours">
-          <span>🕒 ${s.hours}</span> &bull; 
-          <span style="color: #0284c7; font-weight: 700;">📞 ${s.phone}</span>
-        </div>
-      </div>
-      <div>
-        <button class="btn-outline" style="padding: 6px 14px; font-size: 0.78rem; white-space: nowrap;" onclick="showToast('Directions & store contact for ' + '${s.name}' + ' sent to your device!')">
-          🗺️ Get Directions
-        </button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function handleTryProductOrderSubmit(e) {
-  e.preventDefault();
-
-  const project = AppState.projects.find(p => p.id === AppState.activeTryProjectId);
-  if (!project) return;
-
-  const comm = project.commercial || {
-    singlePriceUSD: 2.00,
-    wholesalePriceUSD: 40.00,
-    originCountry: 'Kenya',
-    wholesaleUnit: 'Wholesale Box',
-    singleUnit: 'Sample Pack'
-  };
-
-  const buyerCountry = document.getElementById('tryBuyerCountry').value;
-  const buyerCity = document.getElementById('tryBuyerCity').value.trim();
-  const buyerAddress = document.getElementById('tryBuyerAddress').value.trim();
-  const buyerName = document.getElementById('tryBuyerName').value.trim();
-  const buyerEmail = document.getElementById('tryBuyerEmail').value.trim();
-  const buyerPhone = document.getElementById('tryBuyerPhone').value.trim();
-
-  const isCrossBorder = buyerCountry.trim().toLowerCase() !== comm.originCountry.trim().toLowerCase();
-  const tier = AppState.activeTryTier;
-  const qty = AppState.activeTryQty;
-
-  const unitPrice = tier === 'wholesale' ? comm.wholesalePriceUSD : comm.singlePriceUSD;
-  const subtotal = unitPrice * qty;
-  const shippingFee = isCrossBorder ? (14.50 + (qty - 1) * 3.00) : 2.50;
-  const total = subtotal + shippingFee;
-
-  const studentPayout = subtotal * 0.85;
-  const afostechRevenue = subtotal * 0.15;
-
-  const paymentMethodInput = document.querySelector('input[name="paymentOption"]:checked');
-  const paymentMethod = paymentMethodInput ? paymentMethodInput.value : 'M-Pesa / Mobile Money';
-
-  const orderId = 'AFOST-ORD-2026-' + Math.floor(1000 + Math.random() * 9000);
-  const now = new Date();
-  const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
-
-  const newOrder = {
-    id: orderId,
-    date: dateStr,
-    projectId: project.id,
-    productName: project.title,
-    universityName: project.universityName,
-    buyerName,
-    buyerEmail,
-    buyerPhone,
-    buyerCountry,
-    buyerCity,
-    buyerAddress,
-    originCountry: comm.originCountry,
-    isCrossBorder,
-    tier,
-    unitName: tier === 'wholesale' ? comm.wholesaleUnit : comm.singleUnit,
-    quantity: qty,
-    unitPriceUSD: unitPrice,
-    subtotalUSD: subtotal,
-    shippingFeeUSD: shippingFee,
-    totalUSD: total,
-    studentPayoutUSD: studentPayout,
-    afostechRevenueUSD: afostechRevenue,
-    paymentMethod,
-    paymentRef: 'PAY-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
-    status: 'Dispatched',
-    courier: isCrossBorder 
-      ? ('AFOSTECH Cross-Border Cargo (' + comm.originCountry + ' → ' + buyerCountry + ') Waybill: AF-XB-' + Math.floor(10000+Math.random()*90000)) 
-      : ('AFOSTECH Inter-Campus Domestic Courier Waybill: AF-KE-' + Math.floor(10000+Math.random()*90000))
-  };
-
-  AppState.productOrders.unshift(newOrder);
-
-  try {
-    localStorage.setItem('afostech_product_orders', JSON.stringify(AppState.productOrders));
-  } catch (err) {}
-
-  // Close Try Product Modal
-  const tryModal = document.getElementById('tryProductModal');
-  if (tryModal) tryModal.classList.remove('active');
-
-  // Open Order Confirmation Modal
-  openOrderConfirmationModal(orderId);
-}
-
-function openOrderConfirmationModal(orderId) {
-  const order = AppState.productOrders.find(o => o.id === orderId);
-  if (!order) return;
-
-  const modal = document.getElementById('orderConfirmationModal');
-  const body = document.getElementById('orderConfirmationModalBody');
-  if (!modal || !body) return;
-
-  const isCross = order.isCrossBorder;
-
-  body.innerHTML = `
-    <div style="text-align: center; margin-bottom: 22px;">
-      <div style="width: 56px; height: 56px; border-radius: 50%; background: #ecfdf5; color: #059669; font-size: 2rem; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #a7f3d0; margin-bottom: 8px;">
-        ✓
-      </div>
-      <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">Commercial Consignment Booked!</h3>
-      <p style="font-size: 0.85rem; color: #64748b;">
-        Official Order Reference: <strong style="font-family: monospace; color: #047857;">${order.id}</strong> &bull; Paid via ${order.paymentMethod}
-      </p>
-    </div>
-
-    <!-- Order Tracking Timeline -->
-    <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
-      <div style="font-size: 0.8rem; font-weight: 800; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
-        🚚 Live Consignment Tracking
-      </div>
-      <div style="display: flex; justify-content: space-between; position: relative;">
-        <div style="text-align: center; flex: 1;">
-          <div style="width: 24px; height: 24px; border-radius: 50%; background: #059669; color: white; font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900;">✓</div>
-          <div style="font-size: 0.72rem; font-weight: 800; color: #059669; margin-top: 4px;">Payment Cleared</div>
-        </div>
-        <div style="text-align: center; flex: 1;">
-          <div style="width: 24px; height: 24px; border-radius: 50%; background: #059669; color: white; font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900;">✓</div>
-          <div style="font-size: 0.72rem; font-weight: 800; color: #059669; margin-top: 4px;">Lab QC &amp; Pack</div>
-        </div>
-        <div style="text-align: center; flex: 1;">
-          <div style="width: 24px; height: 24px; border-radius: 50%; background: #0284c7; color: white; font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900;">⚡</div>
-          <div style="font-size: 0.72rem; font-weight: 800; color: #0284c7; margin-top: 4px;">${isCross ? 'Cross-Border Freight' : 'Courier Dispatched'}</div>
-        </div>
-        <div style="text-align: center; flex: 1;">
-          <div style="width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; color: #64748b; font-size: 0.72rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900;">○</div>
-          <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; margin-top: 4px;">Delivered</div>
-        </div>
-      </div>
-      <div style="margin-top: 14px; padding: 10px; background: white; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.78rem; color: #334155;">
-        <strong>Courier Logistics:</strong> ${order.courier}<br>
-        <strong>Estimated Transit:</strong> ${isCross ? '3 - 5 Business Days (Air Freight / Regional Border Hub)' : '1 - 2 Business Days (Campus Express)'}
-      </div>
-    </div>
-
-    <!-- Consignment Details -->
-    <div style="border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-      <h5 style="font-size: 0.88rem; font-weight: 900; color: var(--navy); margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
-        📦 Consignment Waybill &amp; Buyer Details
-      </h5>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.82rem; margin-bottom: 12px;">
-        <div>
-          <span style="color: #64748b;">Consignee / Buyer:</span><br>
-          <strong>${order.buyerName}</strong> (${order.buyerPhone})<br>
-          <span style="color: #64748b;">Destination:</span> ${order.buyerAddress}, ${order.buyerCity}, <strong>${order.buyerCountry}</strong>
-        </div>
-        <div>
-          <span style="color: #64748b;">Originating Campus Pilot Lab:</span><br>
-          <strong>${order.universityName}</strong> (${order.originCountry})<br>
-          <span style="color: #64748b;">Order Classification:</span> 
-          <span style="font-weight: 800; color: ${isCross ? '#b45309' : '#047857'};">
-            ${isCross ? '🌍 Cross-Border Wholesale Export' : '🚚 Domestic Retail / Bulk'}
-          </span>
-        </div>
-      </div>
-
-      <div style="background: #f8fafc; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span>Item: <strong>${order.productName}</strong> (${order.quantity}x ${order.unitName})</span>
-          <strong>$${order.subtotalUSD.toFixed(2)}</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-          <span>Freight Logistics &amp; Phytosanitary Clearance:</span>
-          <strong>$${order.shippingFeeUSD.toFixed(2)}</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 900; border-top: 1px dashed #cbd5e1; padding-top: 6px; color: #059669;">
-          <span>Total Paid:</span>
-          <span>$${order.totalUSD.toFixed(2)}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Official AFOSTECH Institutional Revenue Transparency -->
-    <div style="background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 16px; margin-bottom: 22px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h5 style="font-size: 0.85rem; font-weight: 900; color: #065f46;">
-          🏛️ AFOSTECH Organization Revenue Disbursement
-        </h5>
-        <span style="font-size: 0.72rem; font-weight: 800; background: #059669; color: white; padding: 2px 8px; border-radius: 9999px;">Audited Allocation</span>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.82rem;">
-        <div style="background: white; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px;">
-          <span style="color: #64748b;">Direct Student Innovator Payout (85%):</span>
-          <div style="font-size: 1.15rem; font-weight: 900; color: #047857; margin-top: 2px;">
-            $${order.studentPayoutUSD.toFixed(2)}
-          </div>
-          <p style="font-size: 0.72rem; color: #475569; margin-top: 2px;">Funds lab consumables, packaging &amp; student founder equity.</p>
-        </div>
-        <div style="background: white; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px;">
-          <span style="color: #64748b;">AFOSTECH Commercialization Fund (15%):</span>
-          <div style="font-size: 1.15rem; font-weight: 900; color: #0369a1; margin-top: 2px;">
-            $${order.afostechRevenueUSD.toFixed(2)}
-          </div>
-          <p style="font-size: 0.72rem; color: #475569; margin-top: 2px;">Retained by the organization to organize hackathons &amp; patent grants.</p>
-        </div>
-      </div>
-    </div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <button class="btn-outline" style="font-size: 0.82rem; padding: 8px 16px;" onclick="showToast('Sales Receipt & Consignment Waybill #' + '${order.id}' + ' downloaded as PDF!')">
-        🖨️ Download Official PDF Receipt
-      </button>
-      <button class="btn-primary" style="font-size: 0.85rem; padding: 8px 20px;" onclick="document.getElementById('orderConfirmationModal').classList.remove('active'); document.body.style.overflow = '';">
-        ✓ Done &amp; Return to Catalog
-      </button>
-    </div>
-  `;
-
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function cycleOrderStatus(orderId) {
-  const order = AppState.productOrders.find(o => o.id === orderId);
-  if (!order) return;
-
-  const statuses = ['Processing in Lab', 'Dispatched', 'Cross-Border Transit', 'Out for Delivery', 'Delivered'];
-  const currentIndex = statuses.indexOf(order.status);
-  const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-  order.status = nextStatus;
-
-  try {
-    localStorage.setItem('afostech_product_orders', JSON.stringify(AppState.productOrders));
-  } catch (err) {}
-
-  renderStaffPortalContents();
-  showToast('Order #' + order.id + ' status updated to ' + nextStatus);
+  const targetUrl = isHttpOrigin()
+    ? `/foodfeed-app/marketplace.html?product=${encodeURIComponent(projectId)}`
+    : `../AFOSTECH-FoodFeed/marketplace.html?product=${encodeURIComponent(projectId)}`;
+  showToast('🛒 Directing you to the AFOSTECH Marketplace App...');
+  window.location.href = targetUrl;
 }
 
 // Helper: Escape HTML
@@ -4418,665 +3521,6 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-// ============================================================================
-// FOOD SCIENCE COMMUNITY FEED (PUBLIC EDUCATION, INTERACTION & DISCOVERY)
-// ============================================================================
-
-const FEED_TOPICS = [
-  { id: 'all', label: 'All Topics', icon: '🥑' },
-  { id: '#FoodChemistry', label: 'Food Chemistry', icon: '🧪' },
-  { id: '#FoodSafetyTips', label: 'Food Safety & Hygiene', icon: '🛡️' },
-  { id: '#FermentationTech', label: 'Fermentation & Probiotics', icon: '🌾' },
-  { id: '#WasteUpcycling', label: 'Circular Packaging & Upcycling', icon: '♻️' },
-  { id: '#AlternativeProtein', label: 'Alternative Proteins', icon: '🦗' },
-  { id: '#FoodProcessingTech', label: 'Processing & Engineering', icon: '⚙️' },
-  { id: '#KitchenScience', label: 'Kitchen & Cooking Physics', icon: '🍳' },
-  { id: '#ClinicalNutrition', label: 'Functional Foods & Nutrition', icon: '🩺' }
-];
-
-function renderFeed() {
-  const container = document.getElementById('feedPostsContainer');
-  const chipsContainer = document.getElementById('feedTopicChips');
-  const countEl = document.getElementById('feedResultsCount');
-  if (!container) return;
-
-  // Render Topic Filter Chips
-  if (chipsContainer) {
-    chipsContainer.innerHTML = FEED_TOPICS.map(t => `
-      <button class="chip-btn ${AppState.selectedFeedTopic === t.id ? 'active' : ''}" onclick="filterFeedByTopic('${t.id}')">
-        <span>${t.icon}</span> ${t.label}
-      </button>
-    `).join('');
-  }
-
-  // Filter posts
-  let posts = (AppState.feedPosts || []).filter(p => {
-    // Topic filter
-    if (AppState.selectedFeedTopic !== 'all') {
-      if (p.topicTag !== AppState.selectedFeedTopic && !p.content.includes(AppState.selectedFeedTopic)) {
-        return false;
-      }
-    }
-
-    // Media filter
-    if (AppState.selectedFeedMedia !== 'all') {
-      if (AppState.selectedFeedMedia === 'image' && p.mediaType !== 'image') return false;
-      if (AppState.selectedFeedMedia === 'video' && p.mediaType !== 'video') return false;
-      if (AppState.selectedFeedMedia === 'text' && p.mediaType !== 'none' && p.mediaType !== 'text') return false;
-    }
-
-    // Search query
-    if (AppState.feedSearchQuery) {
-      const q = AppState.feedSearchQuery;
-      const haystack = [
-        p.title || '',
-        p.content || '',
-        p.authorName || '',
-        p.universityName || '',
-        p.topicTag || '',
-        p.topicLabel || ''
-      ].join(' ').toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
-
-    return true;
-  });
-
-  // Sort posts
-  if (AppState.feedSortBy === 'likes') {
-    posts.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
-  } else if (AppState.feedSortBy === 'comments') {
-    posts.sort((a, b) => ((b.comments || []).length) - ((a.comments || []).length));
-  } else if (AppState.feedSortBy === 'reposts') {
-    posts.sort((a, b) => (b.repostsCount || 0) - (a.repostsCount || 0));
-  }
-  // Default 'recent' preserves chronologically ordered array
-
-  if (countEl) {
-    countEl.textContent = `Showing ${posts.length} of ${(AppState.feedPosts || []).length} community food science posts`;
-  }
-
-  if (posts.length === 0) {
-    container.innerHTML = `
-      <div style="background: white; border-radius: 16px; border: 1.5px dashed #cbd5e1; padding: 48px 24px; text-align: center; margin-top: 10px;">
-        <span style="font-size: 3rem; display: block; margin-bottom: 12px;">🥑</span>
-        <h4 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 6px;">No food science posts found</h4>
-        <p style="color: #64748b; font-size: 0.9rem; max-width: 440px; margin: 0 auto 20px;">
-          Try adjusting your search keywords, switching media filters, or selecting "All Topics" to browse student research insights.
-        </p>
-        <button class="btn-primary" onclick="resetFeedFilters()">Reset All Feed Filters</button>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = posts.map(p => createFeedPostCardHTML(p)).join('');
-}
-
-function filterFeedByTopic(topicId) {
-  AppState.selectedFeedTopic = topicId;
-  renderFeed();
-}
-
-function handleFeedFilterChange() {
-  const mediaSelect = document.getElementById('filterFeedMedia');
-  const sortSelect = document.getElementById('filterFeedSort');
-  if (mediaSelect) AppState.selectedFeedMedia = mediaSelect.value;
-  if (sortSelect) AppState.feedSortBy = sortSelect.value;
-  renderFeed();
-}
-
-function resetFeedFilters() {
-  AppState.selectedFeedTopic = 'all';
-  AppState.selectedFeedMedia = 'all';
-  AppState.feedSearchQuery = '';
-  AppState.feedSortBy = 'recent';
-
-  const sInput = document.getElementById('searchFeedInput');
-  if (sInput) sInput.value = '';
-  const mSelect = document.getElementById('filterFeedMedia');
-  if (mSelect) mSelect.value = 'all';
-  const sortSelect = document.getElementById('filterFeedSort');
-  if (sortSelect) sortSelect.value = 'recent';
-
-  renderFeed();
-}
-
-function createFeedPostCardHTML(p) {
-  const isLiked = !!p.isLiked;
-  const isReposted = !!p.isReposted;
-  const commentsCount = (p.comments || []).length;
-  const avatarText = p.authorAvatar || (p.authorName ? p.authorName.split(' ').map(n => n[0]).join('').substring(0, 2) : 'FS');
-  const avatarColor = p.authorColor || '#059669';
-
-  // Format content with clickable hashtag styling
-  const formattedContent = (p.content || '').replace(
-    /(#[A-Za-z0-9_]+)/g,
-    '<span style="color: #0284c7; font-weight: 700; cursor: pointer;" onclick="event.stopPropagation(); filterFeedByTopic(\'$1\')">$1</span>'
-  ).replace(/\n/g, '<br>');
-
-  let mediaHTML = '';
-  if (p.mediaType === 'image' && p.mediaUrl) {
-    mediaHTML = `
-      <div class="feed-media-wrap" onclick="viewFeedImageModal('${p.mediaUrl}', '${escapeHtml(p.title || '')}')">
-        <img src="${p.mediaUrl}" alt="${p.title || 'Food Science Visual'}" class="feed-media-img" loading="lazy">
-        ${p.mediaCaption ? `<div class="feed-media-caption">📷 <strong>Scientific Figure:</strong> ${p.mediaCaption}</div>` : ''}
-      </div>
-    `;
-  } else if (p.mediaType === 'video' && p.mediaUrl) {
-    mediaHTML = `
-      <div class="feed-video-player" onclick="playFeedVideoDemo('${p.id}')">
-        <img src="${p.mediaUrl}" alt="${p.title || 'Pilot Plant Video'}" class="feed-media-img" style="filter: brightness(0.92);" loading="lazy">
-        <div class="video-overlay-play">
-          <div class="video-play-btn">▶</div>
-        </div>
-        <div class="video-duration-pill">⏱️ ${p.videoDuration || '02:30'} &bull; HD DEMO</div>
-        ${p.mediaCaption ? `<div class="feed-media-caption">🎥 <strong>Pilot Plant Footage:</strong> ${p.mediaCaption}</div>` : ''}
-      </div>
-    `;
-  }
-
-  // Comments HTML
-  const commentsHTML = (p.comments || []).map(c => `
-    <div class="feed-comment-item">
-      <div class="comment-avatar">${c.authorAvatar || 'FS'}</div>
-      <div class="comment-body">
-        <div class="comment-header">
-          <strong>${c.authorName}</strong>
-          <span>${c.timeAgo || 'Just now'}</span>
-        </div>
-        ${c.authorRole ? `<div class="comment-role">${c.authorRole}</div>` : ''}
-        <div class="comment-text">${c.text}</div>
-      </div>
-    </div>
-  `).join('');
-
-  return `
-    <article class="feed-card" id="feed-post-${p.id}">
-      <!-- Author Header -->
-      <div class="feed-author-header">
-        <div class="feed-author-info">
-          <div class="feed-author-avatar" style="background: ${avatarColor};">${avatarText}</div>
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span class="feed-author-name">${p.authorName}</span>
-              
-            </div>
-            <div class="feed-author-meta">
-              <span>${p.universityName}</span>
-              ${p.authorDegree ? `<span>&bull;</span> <span>${p.authorDegree}</span>` : ''}
-              <span>&bull;</span>
-              <span>${p.timeAgo || 'Recent'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="feed-topic-pill" onclick="filterFeedByTopic('${p.topicTag}')">${p.topicTag}</span>
-          <button class="feed-btn-message" onclick="openDirectMessageModal('${p.id}')" title="Send a private message or inquiry to ${p.authorName}">
-            ✉️ Message Innovator
-          </button>
-        </div>
-      </div>
-
-      <!-- Post Body -->
-      <div class="feed-content-body">
-        ${p.title ? `<h3 class="feed-post-title">${p.title}</h3>` : ''}
-        <div class="feed-post-text">${formattedContent}</div>
-      </div>
-
-      <!-- Attached Media (Image / Video Demo) -->
-      ${mediaHTML}
-
-      <!-- Interactive Actions Bar (Publicly Interactive) -->
-      <div class="feed-actions-bar">
-        <button class="feed-action-btn ${isLiked ? 'liked' : ''}" onclick="toggleFeedLike('${p.id}')" title="Like this scientific post">
-          <span class="action-icon">${isLiked ? '❤️' : '🤍'}</span>
-          <span class="action-label">${isLiked ? 'Liked' : 'Like'}</span>
-          <span class="action-count" id="like-count-${p.id}">(${p.likesCount || 0})</span>
-        </button>
-
-        <button class="feed-action-btn ${isReposted ? 'reposted' : ''}" onclick="repostFeedPost('${p.id}')" title="Repost to share scientific knowledge">
-          <span class="action-icon">🔁</span>
-          <span class="action-label">${isReposted ? 'Reposted' : 'Repost'}</span>
-          <span class="action-count" id="repost-count-${p.id}">(${p.repostsCount || 0})</span>
-        </button>
-
-        <button class="feed-action-btn" onclick="toggleFeedComments('${p.id}')" title="Join discussion & ask questions">
-          <span class="action-icon">💬</span>
-          <span class="action-label">Discuss</span>
-          <span class="action-count" id="comment-count-${p.id}">(${commentsCount})</span>
-        </button>
-
-        <button class="feed-action-btn" onclick="copyFeedShareLink('${p.id}')" title="Copy public share link">
-          <span class="action-icon">🔗</span>
-          <span class="action-label">Share</span>
-        </button>
-      </div>
-
-      <!-- Expandable Comments & Discussion Section -->
-      <div class="feed-comments-section" id="comments-section-${p.id}">
-        <div class="feed-comments-header">
-          <span style="font-weight: 800; color: #0f172a; font-size: 0.88rem;">Scientific Discussion (${commentsCount})</span>
-          <span style="font-size: 0.78rem; color: #64748b;">Public Q&amp;A open to all</span>
-        </div>
-
-        <!-- Add Comment Input Box -->
-        <form class="feed-comment-input-box" onsubmit="addFeedComment('${p.id}', event)">
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <input type="text" id="comment-name-${p.id}" class="form-control" style="font-size: 0.82rem; padding: 6px 12px; width: 45%;" placeholder="Your Name (e.g. Dr. Alex / Maya P.)" required value="${AppState.currentStudentUser ? AppState.currentStudentUser.name : ''}">
-            <input type="text" id="comment-role-${p.id}" class="form-control" style="font-size: 0.82rem; padding: 6px 12px; flex: 1;" placeholder="Role / Interest (e.g. Home Chef, Chemist, Student)" value="${AppState.currentStudentUser ? (AppState.currentStudentUser.universityShort + ' Innovator') : ''}">
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="comment-text-${p.id}" class="form-control" style="font-size: 0.85rem; padding: 8px 14px;" placeholder="Ask a food science question or share your thoughts..." required>
-            <button type="submit" class="btn-primary" style="padding: 8px 16px; font-size: 0.82rem; white-space: nowrap;">Comment</button>
-          </div>
-        </form>
-
-        <!-- Comments List -->
-        <div class="feed-comments-list" id="comments-list-${p.id}">
-          ${commentsHTML}
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-// 1. Like Toggle (Live interactive counter, open to anyone)
-function toggleFeedLike(postId) {
-  const post = (AppState.feedPosts || []).find(p => p.id === postId);
-  if (!post) return;
-
-  post.isLiked = !post.isLiked;
-  if (post.isLiked) {
-    post.likesCount = (post.likesCount || 0) + 1;
-    showToast(`❤️ Liked: "${post.title ? post.title.substring(0, 35) : 'Food Science Post'}"!`);
-  } else {
-    post.likesCount = Math.max(0, (post.likesCount || 1) - 1);
-  }
-
-  saveState();
-
-  // Update UI live without full re-render
-  const btn = document.querySelector(`#feed-post-${postId} .feed-action-btn:first-child`);
-  const countSpan = document.getElementById(`like-count-${postId}`);
-  if (btn && countSpan) {
-    btn.classList.toggle('liked', post.isLiked);
-    btn.querySelector('.action-icon').textContent = post.isLiked ? '❤️' : '🤍';
-    btn.querySelector('.action-label').textContent = post.isLiked ? 'Liked' : 'Like';
-    countSpan.textContent = `(${post.likesCount})`;
-  }
-}
-
-// 2. Repost Action (Increments reposts and copies share link)
-function repostFeedPost(postId) {
-  const post = (AppState.feedPosts || []).find(p => p.id === postId);
-  if (!post) return;
-
-  post.isReposted = true;
-  post.repostsCount = (post.repostsCount || 0) + 1;
-  saveState();
-
-  // Copy share URL to clipboard
-  const url = window.location.origin + window.location.pathname + '#feed-' + postId;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).catch(() => {});
-  }
-
-  const repostBtn = document.querySelector(`#feed-post-${postId} .feed-action-btn:nth-child(2)`);
-  const repostCountSpan = document.getElementById(`repost-count-${postId}`);
-  if (repostBtn && repostCountSpan) {
-    repostBtn.classList.add('reposted');
-    repostBtn.querySelector('.action-label').textContent = 'Reposted';
-    repostCountSpan.textContent = `(${post.repostsCount})`;
-  }
-
-  showToast('🔁 Reposted! Direct share link copied to clipboard.');
-}
-
-// 3. Copy Share Link
-function copyFeedShareLink(postId) {
-  const url = window.location.origin + window.location.pathname + '#feed-' + postId;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => {
-      showToast('🔗 Public food science post link copied to clipboard!');
-    }).catch(() => {
-      showToast('🔗 Share link: ' + url);
-    });
-  } else {
-    showToast('🔗 Share link ready: ' + url);
-  }
-}
-
-// 4. Toggle Comments Section
-function toggleFeedComments(postId) {
-  const section = document.getElementById(`comments-section-${postId}`);
-  if (!section) return;
-  const isVisible = section.style.display === 'block';
-  section.style.display = isVisible ? 'none' : 'block';
-}
-
-// 5. Add Comment (Open to anyone)
-function addFeedComment(postId, event) {
-  if (event) event.preventDefault();
-  const post = (AppState.feedPosts || []).find(p => p.id === postId);
-  if (!post) return;
-
-  const nameInput = document.getElementById(`comment-name-${postId}`);
-  const roleInput = document.getElementById(`comment-role-${postId}`);
-  const textInput = document.getElementById(`comment-text-${postId}`);
-
-  const authorName = (nameInput ? nameInput.value.trim() : '') || 'Food Science Enthusiast';
-  const authorRole = (roleInput ? roleInput.value.trim() : '') || 'Community Member';
-  const text = (textInput ? textInput.value.trim() : '');
-
-  if (!text) {
-    showToast('⚠️ Please write a comment before posting.');
-    return;
-  }
-
-  const initials = authorName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'FS';
-  const newComment = {
-    id: 'c-' + Date.now(),
-    authorName,
-    authorRole,
-    authorAvatar: initials,
-    timeAgo: 'Just now',
-    text
-  };
-
-  if (!post.comments) post.comments = [];
-  post.comments.push(newComment);
-  saveState();
-
-  if (textInput) textInput.value = '';
-
-  // Update UI
-  const commentsList = document.getElementById(`comments-list-${postId}`);
-  const commentCountEl = document.getElementById(`comment-count-${postId}`);
-  if (commentCountEl) commentCountEl.textContent = `(${post.comments.length})`;
-
-  if (commentsList) {
-    const itemHTML = `
-      <div class="feed-comment-item" style="animation: fadeIn 0.3s ease;">
-        <div class="comment-avatar" style="background: #0284c7;">${newComment.authorAvatar}</div>
-        <div class="comment-body">
-          <div class="comment-header">
-            <strong>${newComment.authorName}</strong>
-            <span>Just now</span>
-          </div>
-          <div class="comment-role">${newComment.authorRole}</div>
-          <div class="comment-text">${newComment.text}</div>
-        </div>
-      </div>
-    `;
-    commentsList.insertAdjacentHTML('beforeend', itemHTML);
-  }
-
-  showToast('💬 Comment posted to food science discussion!');
-}
-
-// 6. Create Post Modal (Innovators only)
-function openCreateFeedPostModal(presetMediaType) {
-  // Authentication check: Only registered student innovators can publish posts
-  if (!AppState.currentStudentUser) {
-    showToast('🔒 Innovator Login Required: Only authenticated student innovators can publish posts to the Food Science Feed.');
-    openInnovatorAuthModal();
-    return;
-  }
-
-  const modal = document.getElementById('createFeedPostModal');
-  if (!modal) return;
-
-  // Prepopulate Innovator Information
-  const user = AppState.currentStudentUser;
-  const avatarEl = document.getElementById('feedPostAuthorAvatar');
-  const nameEl = document.getElementById('feedPostAuthorName');
-  const metaEl = document.getElementById('feedPostAuthorMeta');
-  if (avatarEl) {
-    avatarEl.textContent = user.name.split(' ').map(n => n[0]).join('').substring(0, 2);
-    avatarEl.style.background = '#059669';
-  }
-  if (nameEl) nameEl.textContent = user.name;
-  if (metaEl) metaEl.textContent = `${user.universityShort || user.universityName} • ${user.department || 'Food Science & Tech'} • Adm: ${user.admissionNo}`;
-
-  // Select media type
-  const targetMedia = presetMediaType || 'image';
-  const radio = document.querySelector(`input[name="feedMediaType"][value="${targetMedia}"]`);
-  if (radio) radio.checked = true;
-  toggleFeedMediaInputs(targetMedia);
-
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function toggleFeedMediaInputs(mediaType) {
-  const imgGroup = document.getElementById('feedImageInputGroup');
-  const vidGroup = document.getElementById('feedVideoInputGroup');
-  const captionGroup = document.getElementById('feedCaptionGroup');
-
-  if (mediaType === 'image') {
-    if (imgGroup) imgGroup.style.display = 'block';
-    if (vidGroup) vidGroup.style.display = 'none';
-    if (captionGroup) captionGroup.style.display = 'block';
-  } else if (mediaType === 'video') {
-    if (imgGroup) imgGroup.style.display = 'none';
-    if (vidGroup) vidGroup.style.display = 'block';
-    if (captionGroup) captionGroup.style.display = 'block';
-  } else {
-    // Text only
-    if (imgGroup) imgGroup.style.display = 'none';
-    if (vidGroup) vidGroup.style.display = 'none';
-    if (captionGroup) captionGroup.style.display = 'none';
-  }
-}
-
-function handleFeedPhotoUpload(input) {
-  if (input && input.files && input.files[0]) {
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const urlInput = document.getElementById('feedImageUrl');
-      if (urlInput) urlInput.value = e.target.result;
-      showFeedMediaPreview('image', file.name, (file.size / 1024).toFixed(1) + ' KB');
-      showToast('📷 Photo loaded for post preview!');
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-function handleFeedVideoUpload(input) {
-  if (input && input.files && input.files[0]) {
-    const file = input.files[0];
-    const urlInput = document.getElementById('feedVideoUrl');
-    if (urlInput) urlInput.value = 'assets/feed_microfluidizer.svg'; // Simulated pilot demo clip
-    showFeedMediaPreview('video', file.name, (file.size / (1024 * 1024)).toFixed(1) + ' MB');
-    showToast('🎥 Video clip loaded for post demo!');
-  }
-}
-
-function applyFeedPresetMedia(presetUrl, type) {
-  if (!presetUrl) return;
-  if (type === 'image') {
-    const urlInput = document.getElementById('feedImageUrl');
-    if (urlInput) urlInput.value = presetUrl;
-    showFeedMediaPreview('image', presetUrl.replace('assets/', ''), 'Scientific Visual Preset');
-  } else if (type === 'video') {
-    const urlInput = document.getElementById('feedVideoUrl');
-    if (urlInput) urlInput.value = presetUrl;
-    showFeedMediaPreview('video', presetUrl.replace('assets/', ''), 'Pilot Demo Video Clip');
-  }
-}
-
-function showFeedMediaPreview(type, filename, sizeText) {
-  const box = document.getElementById('feedMediaPreviewBox');
-  const icon = document.getElementById('feedPreviewIcon');
-  const nameEl = document.getElementById('feedPreviewFileName');
-  const sizeEl = document.getElementById('feedPreviewFileSize');
-  if (!box) return;
-
-  if (icon) icon.textContent = type === 'video' ? '🎥' : '📷';
-  if (nameEl) nameEl.textContent = filename;
-  if (sizeEl) sizeEl.textContent = `(${sizeText})`;
-  box.style.display = 'flex';
-}
-
-function clearFeedMediaPreview() {
-  const box = document.getElementById('feedMediaPreviewBox');
-  if (box) box.style.display = 'none';
-  const imgUrl = document.getElementById('feedImageUrl');
-  if (imgUrl) imgUrl.value = '';
-  const vidUrl = document.getElementById('feedVideoUrl');
-  if (vidUrl) vidUrl.value = '';
-  const photoFile = document.getElementById('feedPhotoFile');
-  if (photoFile) photoFile.value = '';
-  const vidFile = document.getElementById('feedVideoFile');
-  if (vidFile) vidFile.value = '';
-}
-
-function handleCreateFeedPostSubmit(event) {
-  if (event) event.preventDefault();
-
-  if (!AppState.currentStudentUser) {
-    showToast('🔒 Innovator login required to publish posts.');
-    openInnovatorAuthModal();
-    return;
-  }
-
-  const user = AppState.currentStudentUser;
-  const topicTag = document.getElementById('feedPostTopic').value;
-  const title = document.getElementById('feedPostTitle').value.trim();
-  const content = document.getElementById('feedPostContent').value.trim();
-  const mediaTypeRadio = document.querySelector('input[name="feedMediaType"]:checked');
-  const mediaType = mediaTypeRadio ? mediaTypeRadio.value : 'image';
-  const caption = (document.getElementById('feedMediaCaption')?.value || '').trim();
-
-  let mediaUrl = '';
-  let videoDuration = '02:30';
-
-  if (mediaType === 'image') {
-    mediaUrl = (document.getElementById('feedImageUrl')?.value || '').trim() || 'assets/feed_avocado.svg';
-  } else if (mediaType === 'video') {
-    mediaUrl = (document.getElementById('feedVideoUrl')?.value || '').trim() || 'assets/feed_microfluidizer.svg';
-    videoDuration = (document.getElementById('feedVideoDuration')?.value || '').trim() || '02:30';
-  }
-
-  const newPost = {
-    id: 'post-' + Date.now(),
-    authorName: user.name,
-    authorAdmissionNo: user.admissionNo,
-    authorDegree: user.degree || 'B.Sc. Food Science & Technology',
-    authorRole: 'Student Innovator / Food Technologist',
-    authorAvatar: user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-    authorColor: '#059669',
-    universityId: user.universityId || 'jkuat',
-    universityName: user.universityShort || user.universityName || 'JKUAT (Kenya)',
-    timeAgo: 'Just now',
-    datePosted: 'Nov 2026',
-    topicTag,
-    topicLabel: topicTag.replace('#', ''),
-    title,
-    content,
-    mediaType,
-    mediaUrl,
-    mediaCaption: caption,
-    videoDuration,
-    likesCount: 1,
-    repostsCount: 0,
-    isLiked: true,
-    isReposted: false,
-    comments: []
-  };
-
-  if (!AppState.feedPosts) AppState.feedPosts = [];
-  AppState.feedPosts.unshift(newPost);
-  saveState();
-
-  closeModal();
-  renderFeed();
-  switchTab('feed');
-
-  showToast('🎉 Food science post published to the community feed!');
-}
-
-// 7. Direct Message Modal (Public to anyone)
-function openDirectMessageModal(postId) {
-  const post = (AppState.feedPosts || []).find(p => p.id === postId);
-  if (!post) return;
-
-  const modal = document.getElementById('directMessageModal');
-  if (!modal) return;
-
-  const recName = document.getElementById('dmRecipientName');
-  const postRef = document.getElementById('dmPostReference');
-  const pIdInput = document.getElementById('dmPostId');
-  const aNameInput = document.getElementById('dmAuthorName');
-  const uIdInput = document.getElementById('dmUniversityId');
-
-  if (recName) recName.textContent = `${post.authorName} (${post.universityName})`;
-  if (postRef) postRef.innerHTML = `Regarding post: <em>"${escapeHtml(post.title || post.topicTag)}"</em>`;
-  if (pIdInput) pIdInput.value = post.id;
-  if (aNameInput) aNameInput.value = post.authorName;
-  if (uIdInput) uIdInput.value = post.universityId;
-
-  // Pre-fill if current user is logged in
-  if (AppState.currentStudentUser) {
-    const sName = document.getElementById('dmSenderName');
-    const sContact = document.getElementById('dmSenderContact');
-    if (sName) sName.value = AppState.currentStudentUser.name;
-    if (sContact) sContact.value = AppState.currentStudentUser.email || '';
-  }
-
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function handleDirectMessageSubmit(event) {
-  if (event) event.preventDefault();
-
-  const postId = document.getElementById('dmPostId')?.value;
-  const authorName = document.getElementById('dmAuthorName')?.value || 'Innovator';
-  const senderName = document.getElementById('dmSenderName')?.value.trim();
-  const senderContact = document.getElementById('dmSenderContact')?.value.trim();
-  const inquiryType = document.getElementById('dmInquiryType')?.value;
-  const messageText = document.getElementById('dmMessageText')?.value.trim();
-
-  if (!senderName || !senderContact || !messageText) {
-    showToast('⚠️ Please fill out all required fields.');
-    return;
-  }
-
-  const messageRecord = {
-    id: 'msg-' + Date.now(),
-    postId,
-    recipientName: authorName,
-    senderName,
-    senderContact,
-    inquiryType,
-    messageText,
-    dateSent: new Date().toISOString(),
-    status: 'Delivered to Innovator Dashboard'
-  };
-
-  if (!AppState.innovatorMessages) AppState.innovatorMessages = [];
-  AppState.innovatorMessages.push(messageRecord);
-  saveState();
-
-  closeModal();
-
-  showToast(`✉️ Message sent to ${authorName}! They have received your scientific inquiry directly.`);
-}
-
-function playFeedVideoDemo(postId) {
-  const post = (AppState.feedPosts || []).find(p => p.id === postId);
-  if (!post) return;
-  showToast(`▶ Playing ${post.videoDuration || 'HD'} video demo: "${post.title ? post.title.substring(0, 30) : 'Pilot Plant Trial'}"`);
-}
-
-function viewFeedImageModal(imgUrl, title) {
-  showToast(`🔍 Viewing full scientific visual: ${title || 'Food Science Figure'}`);
 }
 
 // ============================================================================
@@ -5394,36 +3838,34 @@ function saveStudioProductImage() {
       return;
     }
 
-    // Save for existing project
+    // Save for existing project (persisted to SQLite backend if online)
     const proj = AppState.projects.find(p => p.id === targetId);
     if (proj) {
-      proj.image = finalImageUrl;
-
-      // Update customSubmissions if it's a custom project
-      const customProj = AppState.customSubmissions.find(p => p.id === targetId);
-      if (customProj) customProj.image = finalImageUrl;
-
-      // Save image overrides map in localStorage
-      try {
-        let overrides = {};
-        const stored = localStorage.getItem('afostech_project_images');
-        if (stored) overrides = JSON.parse(stored);
-        overrides[targetId] = finalImageUrl;
-        localStorage.setItem('afostech_project_images', JSON.stringify(overrides));
-        localStorage.setItem('afostech_custom_projects', JSON.stringify(AppState.customSubmissions));
-      } catch (e) {}
-
-      // Refresh views live
-      renderCatalog();
-      renderDashboard();
-      
-      const innovModal = document.getElementById('innovatorDashboardModal');
-      if (innovModal && innovModal.classList.contains('active')) {
-        openStudentInnovatorDashboard();
+      if (AppState.isBackendOnline) {
+        apiRequest(`/api/projects/${targetId}/image`, {
+          method: 'PUT',
+          body: JSON.stringify({ image: finalImageUrl })
+        }).then(res => {
+          proj.image = res.image;
+          renderCatalog();
+          renderDashboard();
+          const innovModal = document.getElementById('innovatorDashboardModal');
+          if (innovModal && innovModal.classList.contains('active')) openStudentInnovatorDashboard();
+          closeModal();
+          showToast(`📸 "${proj.title}" product image saved to backend!`);
+        }).catch(err => {
+          showToast('⚠️ ' + err.message);
+        });
+        return;
       }
 
+      proj.image = finalImageUrl;
+      renderCatalog();
+      renderDashboard();
+      const innovModal = document.getElementById('innovatorDashboardModal');
+      if (innovModal && innovModal.classList.contains('active')) openStudentInnovatorDashboard();
       closeModal();
-      showToast(`📸 "${proj.title}" product image updated and saved to catalog!`);
+      showToast(`📸 "${proj.title}" product image updated!`);
     }
   }
 

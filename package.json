@@ -1,0 +1,13 @@
+{
+  "name": "afostech-platform",
+  "version": "2.0.0",
+  "description": "AFOSTECH Collegiate Food Science Innovation & Research Platform with Node.js + SQLite Backend and Role-Based Access Control",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/api.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

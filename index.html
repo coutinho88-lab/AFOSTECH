@@ -35,14 +35,12 @@
           🏛️ Request Partnership
         </button>
 
-        <!-- Student Innovators Portal -->
-        <button id="navInnovatorBtn" class="btn-utility js-open-innovator-auth" title="Student innovator login and CV dashboard">
-          🎓 Innovator Portal
+        <!-- Single Unified Sign In (Role determined by email: Staff vs Innovator) -->
+        <button id="navAuthBtn" class="btn-utility js-open-auth" title="Sign in with your email address">
+          🔑 Sign In
         </button>
-
-        <!-- Staff Officials Only Login -->
-        <button id="navStaffLoginBtn" class="btn-utility js-open-staff-login" title="Restricted access for AFOSTECH organization officials">
-          🔒 Staff Portal
+        <button id="navLogoutBtn" class="btn-utility" style="display: none; background: rgba(239, 68, 68, 0.14); border-color: rgba(239, 68, 68, 0.35); color: #fecaca;" onclick="logoutCurrentUser()" title="Sign out">
+          Sign Out
         </button>
       </div>
     </div>
@@ -80,11 +78,6 @@
             </button>
           </li>
           <li>
-            <button class="nav-btn" data-tab="feed">
-              <span>🥑</span> Food Feed
-            </button>
-          </li>
-          <li>
             <button class="nav-btn" data-tab="leaderboard">
               <span>🏆</span> Leaderboard
             </button>
@@ -107,14 +100,96 @@
         </ul>
       </nav>
 
-      <!-- Submit Innovation Action Button (Restricted to Innovators) -->
+      <!-- Submit Innovation Action Button (Restricted to Innovators) + Mobile Sections Trigger -->
       <div class="nav-action-wrapper">
         <button class="submit-btn-nav js-open-submit" id="navSubmitBtn" title="Innovator member access required">
           <span>🔒</span> Submit
         </button>
+        <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open sections shortcut menu" aria-expanded="false" aria-controls="mobileSideDrawer">
+          <span class="mobile-menu-icon" aria-hidden="true">☰</span>
+          <span class="mobile-menu-label">Sections</span>
+        </button>
       </div>
     </div>
   </header>
+
+  <!-- Mobile Side Shortcut Tab & Slide-Out Sections Drawer -->
+  <button type="button" class="mobile-side-shortcut-btn" id="mobileSideShortcutBtn" aria-label="Open portal sections" aria-expanded="false" aria-controls="mobileSideDrawer">
+    <span class="shortcut-icon" aria-hidden="true">☰</span>
+    <span class="shortcut-text">Sections</span>
+  </button>
+
+  <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" aria-hidden="true"></div>
+
+  <aside class="mobile-side-drawer" id="mobileSideDrawer" role="dialog" aria-modal="true" aria-label="AFOSTECH Sections Menu" aria-hidden="true">
+    <div class="mobile-drawer-header">
+      <div class="mobile-drawer-brand">
+        <img src="assets/logo.jpg" alt="AFOSTECH" class="mobile-drawer-logo">
+        <div>
+          <div class="mobile-drawer-title">AFOSTECH</div>
+          <div class="mobile-drawer-subtitle" id="mobileDrawerUserSummary">Quick Section Navigator</div>
+        </div>
+      </div>
+      <button type="button" class="mobile-drawer-close" id="mobileDrawerCloseBtn" aria-label="Close sections menu">&times;</button>
+    </div>
+
+    <div class="mobile-drawer-body">
+      <div class="mobile-drawer-section-label">Portal Sections</div>
+      <nav class="mobile-drawer-nav" aria-label="Mobile sections">
+        <button type="button" class="mobile-drawer-nav-btn active" data-tab="dashboard">
+          <span class="drawer-btn-icon">🏠</span>
+          <span class="drawer-btn-label">Dashboard</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="catalog">
+          <span class="drawer-btn-icon">🔬</span>
+          <span class="drawer-btn-label">Innovations</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="theses">
+          <span class="drawer-btn-icon">📚</span>
+          <span class="drawer-btn-label">Theses</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="leaderboard">
+          <span class="drawer-btn-icon">🏆</span>
+          <span class="drawer-btn-label">Leaderboard</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="innovators">
+          <span class="drawer-btn-icon">🎖️</span>
+          <span class="drawer-btn-label">Honour Board</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="news">
+          <span class="drawer-btn-icon">📰</span>
+          <span class="drawer-btn-label">News</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+        <button type="button" class="mobile-drawer-nav-btn" data-tab="about">
+          <span class="drawer-btn-icon">🏛️</span>
+          <span class="drawer-btn-label">About</span>
+          <span class="drawer-btn-arrow">›</span>
+        </button>
+      </nav>
+
+      <div class="mobile-drawer-section-label" style="margin-top: 18px;">Quick Actions</div>
+      <div class="mobile-drawer-actions">
+        <button type="button" class="mobile-drawer-action-btn primary" id="mobileDrawerSubmitBtn">
+          🔒 Submit Innovation
+        </button>
+        <button type="button" class="mobile-drawer-action-btn" id="mobileDrawerPartnershipBtn">
+          🏛️ Request Partnership
+        </button>
+        <button type="button" class="mobile-drawer-action-btn" id="mobileDrawerAuthBtn">
+          🔑 Sign In
+        </button>
+        <button type="button" class="mobile-drawer-action-btn danger" id="mobileDrawerLogoutBtn" style="display: none;">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </aside>
 
   <!-- =========================================================================
        VIEW 1: DASHBOARD (Organization Intro, Stats & Previews)
@@ -318,34 +393,6 @@
           </div>
         </div>
 
-        <!-- Public Food Science Community Feed Spotlight Banner -->
-        <div style="margin-top: 32px; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #eff6ff 100%); border-radius: 20px; padding: 32px; border: 1.5px solid #a7f3d0; box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
-          <div style="display: flex; align-items: flex-start; gap: 20px; max-width: 720px;">
-            <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
-              🥑
-            </div>
-            <div>
-              <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #059669; letter-spacing: 0.5px;">
-                Open Public Education &amp; Science Feed
-              </span>
-              <h3 style="font-size: 1.35rem; font-weight: 900; color: var(--navy); margin: 4px 0 6px;">
-                Community Food Science Feed
-              </h3>
-              <p style="font-size: 0.92rem; color: #475569; line-height: 1.55;">
-                Demystifying food science for the public! Student innovators share bite-sized kitchen chemistry, pilot plant video demonstrations, and laboratory breakthroughs. Like, repost, comment, or message student scientists directly.
-              </p>
-            </div>
-          </div>
-          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <button class="btn-outline" onclick="switchTab('feed')">
-              Explore Food Feed →
-            </button>
-            <button class="btn-primary js-open-create-feed-post" id="dashboardCreatePostBtn" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);" title="Innovator login required">
-              <span>🔒</span> Share Food Science Post
-            </button>
-          </div>
-        </div>
-
       </div>
     </section>
 
@@ -479,151 +526,6 @@
   </section>
 
   <!-- =========================================================================
-       VIEW: PUBLIC FOOD SCIENCE COMMUNITY FEED
-       ========================================================================= -->
-  <section id="feedView" class="section" style="display: none;">
-    <div class="container">
-
-      <div class="section-header">
-        <div>
-          <span class="section-tag">Public Food Science Education &amp; Discovery</span>
-          <h2 class="section-title">Open Food Science Feed</h2>
-          <p class="section-subtitle">
-            A public hub where student innovators share bite-sized science, kitchen chemistry, laboratory breakthroughs, and pilot plant videos. Anyone can like, repost, ask questions in comments, or message student scientists directly!
-          </p>
-        </div>
-        <button class="btn-primary js-open-create-feed-post" id="feedCreatePostBtn" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);" title="Innovator login required">
-          <span>🔒</span> Share Food Science Post
-        </button>
-      </div>
-
-      <!-- Feed Filter & Search Toolbar -->
-      <div class="catalog-toolbar">
-        <div class="toolbar-top">
-          <div class="search-input-wrapper">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="searchFeedInput" class="search-input" placeholder="Search posts, topics (e.g. #FoodChemistry, #FoodSafety, #Fermentation), or innovator...">
-          </div>
-
-          <div class="toolbar-filters">
-            <select id="filterFeedMedia" class="select-filter" aria-label="Filter by media type" onchange="handleFeedFilterChange()">
-              <option value="all">🎬 All Media Types</option>
-              <option value="image">📷 Photos &amp; Infographics</option>
-              <option value="video">🎥 Videos &amp; Live Demos</option>
-              <option value="text">📝 Text &amp; Science Explanations</option>
-            </select>
-
-            <select id="filterFeedSort" class="select-filter" aria-label="Sort feed posts" onchange="handleFeedFilterChange()">
-              <option value="recent">⏱️ Newest First</option>
-              <option value="likes">❤️ Most Liked</option>
-              <option value="comments">💬 Most Discussed</option>
-              <option value="reposts">🔁 Most Reposted</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="feedTopicChips" class="category-chips">
-          <!-- Populated dynamically by app.js -->
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #64748b; padding-top: 8px; border-top: 1px solid #f1f5f9; flex-wrap: wrap; gap: 8px;">
-          <span id="feedResultsCount">Showing all food science posts...</span>
-          <span style="font-size: 0.8rem; color: #047857; font-weight: 700;">
-            🥑 Public Knowledge Hub &bull; Anyone can like, repost, comment, or message innovators
-          </span>
-        </div>
-      </div>
-
-      <!-- Feed Layout (Main Stream + Trending Sidebar) -->
-      <div class="feed-layout">
-        <!-- Main Feed Stream -->
-        <div id="feedPostsStream">
-          <!-- Composer Trigger Box -->
-          <div class="feed-composer-box">
-            <div style="display: flex; align-items: center; gap: 14px; flex: 1;">
-              <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #059669, #0284c7); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">
-                🥑
-              </div>
-              <div style="flex: 1; background: #f1f5f9; border-radius: 9999px; padding: 12px 20px; font-size: 0.9rem; color: #64748b; cursor: pointer;" onclick="openCreateFeedPostModal()">
-                What food science discovery, recipe chemistry, or lab experiment do you want to share?
-              </div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn-outline" style="padding: 8px 14px; font-size: 0.82rem;" onclick="openCreateFeedPostModal('image')">📷 Photo</button>
-              <button type="button" class="btn-outline" style="padding: 8px 14px; font-size: 0.82rem;" onclick="openCreateFeedPostModal('video')">🎥 Video</button>
-              <button type="button" class="btn-primary js-open-create-feed-post" style="padding: 8px 16px; font-size: 0.82rem;">+ Post</button>
-            </div>
-          </div>
-
-          <!-- Feed Posts Cards Container -->
-          <div id="feedPostsContainer">
-            <!-- Rendered dynamically by renderFeed() in app.js -->
-          </div>
-        </div>
-
-        <!-- Sidebar: Trending Topics & Food Science Fact of the Day -->
-        <div class="feed-sidebar">
-          <!-- Fact of the Day Card -->
-          <div class="pillar-card" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); color: white; margin-bottom: 24px; border: none; box-shadow: 0 4px 16px rgba(6, 78, 59, 0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase;">Daily Science Fact</span>
-              <span style="font-size: 1.2rem;">💡</span>
-            </div>
-            <h4 style="font-size: 1.05rem; font-weight: 900; margin-bottom: 6px; color: white;">The Maillard Reaction</h4>
-            <p style="font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 12px;">
-              That golden-brown sear on toast, coffee beans, and grilled food isn't caramelization! It's a chemical reaction between reducing sugars and amino acids above 140°C that produces hundreds of complex flavor molecules.
-            </p>
-            <span style="font-size: 0.75rem; color: #a7f3d0; font-weight: 700;">— AFOSTECH Food Chemistry Chapter</span>
-          </div>
-
-          <!-- Trending Topics Card -->
-          <div class="pillar-card" style="margin-bottom: 24px;">
-            <h4 style="font-size: 1.05rem; font-weight: 900; color: var(--navy); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-              <span>🔥</span> Trending Food Topics
-            </h4>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <a href="#" onclick="filterFeedByTopic('#FoodChemistry'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 800; color: #047857; font-size: 0.85rem;">#FoodChemistry</span>
-                <span style="font-size: 0.75rem; color: #64748b;">142 posts</span>
-              </a>
-              <a href="#" onclick="filterFeedByTopic('#FermentationTech'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 800; color: #0369a1; font-size: 0.85rem;">#FermentationTech</span>
-                <span style="font-size: 0.75rem; color: #64748b;">98 posts</span>
-              </a>
-              <a href="#" onclick="filterFeedByTopic('#WasteUpcycling'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 800; color: #0f766e; font-size: 0.85rem;">#WasteUpcycling</span>
-                <span style="font-size: 0.75rem; color: #64748b;">76 posts</span>
-              </a>
-              <a href="#" onclick="filterFeedByTopic('#AlternativeProtein'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 800; color: #d97706; font-size: 0.85rem;">#AlternativeProtein</span>
-                <span style="font-size: 0.75rem; color: #64748b;">64 posts</span>
-              </a>
-              <a href="#" onclick="filterFeedByTopic('#FoodSafetyTips'); return false;" style="text-decoration: none; display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
-                <span style="font-weight: 800; color: #dc2626; font-size: 0.85rem;">#FoodSafetyTips</span>
-                <span style="font-size: 0.75rem; color: #64748b;">58 posts</span>
-              </a>
-            </div>
-          </div>
-
-          <!-- Direct Innovator Connect Notice -->
-          <div class="pillar-card" style="background: #f0fdf4; border: 1.5px solid #a7f3d0;">
-            <div style="font-size: 0.78rem; font-weight: 900; color: #064e3b; text-transform: uppercase; margin-bottom: 6px;">
-              ✉️ Direct Scientist Connect
-            </div>
-            <p style="font-size: 0.82rem; color: #047857; line-height: 1.5; margin-bottom: 8px;">
-              Anyone can message the student innovator who published a post! Use the <strong>"✉️ Message Innovator"</strong> button on any card to ask technical questions, request kitchen recipe advice, or discuss commercial collaboration.
-            </p>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- =========================================================================
        VIEW 3: UNIVERSITY LEADERBOARD (Positive Peer Competition)
        ========================================================================= -->
   <section id="leaderboardView" class="section" style="display: none;">
@@ -699,7 +601,7 @@
           </p>
         </div>
         <div style="display: flex; gap: 10px;">
-          <button class="btn-outline js-open-innovator-auth" id="innovatorsAuthBtn">
+          <button class="btn-outline js-open-auth" id="innovatorsAuthBtn">
             🎓 Innovator Login / Sign Up
           </button>
           <button class="btn-primary js-open-submit">
@@ -777,7 +679,7 @@
         </button>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; margin-bottom: 48px;">
+      <div class="about-story-grid">
         <div style="background: white; border-radius: 16px; padding: 32px; border: 1.5px solid #e2e8f0; box-shadow: var(--shadow-sm);">
           <h3 style="font-size: 1.3rem; margin-bottom: 12px; color: var(--navy);">Our Genesis &amp; Vision</h3>
           <p style="color: #475569; font-size: 0.95rem; margin-bottom: 16px; line-height: 1.65;">
@@ -817,7 +719,7 @@
         </div>
       </div>
 
-      <div id="aboutUniversitiesGrid" class="pillars-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+      <div id="aboutUniversitiesGrid" class="pillars-grid about-universities-grid">
         <!-- Rendered dynamically -->
       </div>
 
@@ -957,8 +859,6 @@
               <option value="assets/biochitowrap.svg">🥭 BioChito Mango Biopolymer Wrap</option>
               <option value="assets/progrub.svg">🦗 ProGrub™ Insect Protein Meal</option>
               <option value="assets/enzibrew.svg">🌾 EnziBrew Sorghum Beverage</option>
-              <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Trial</option>
-              <option value="assets/feed_bioplastic.svg">🍓 Strawberry Shelf-Life Film</option>
             </select>
           </div>
           <!-- Preview Box with Direct Edit Shortcut -->
@@ -996,7 +896,7 @@
 
           <div id="teamMembersBufferList" style="margin-bottom: 12px;"></div>
 
-          <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: center;">
+          <div class="team-member-adder-grid">
             <input type="text" id="newMemberName" class="form-control" placeholder="Member Name" style="padding: 7px 10px; font-size: 0.82rem;">
             <input type="text" id="newMemberAdm" class="form-control" placeholder="Admission No." style="padding: 7px 10px; font-size: 0.82rem;">
             <input type="text" id="newMemberRole" class="form-control" placeholder="Project Role" style="padding: 7px 10px; font-size: 0.82rem;">
@@ -1118,62 +1018,6 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 4: STAFF OFFICIAL LOGIN
-       ========================================================================= -->
-  <div id="staffLoginModal" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 480px;">
-      <div class="modal-header">
-        <div>
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #0284c7;">
-            Restricted Staff Area
-          </span>
-          <h3 style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
-            AFOSTECH Officials Login
-          </h3>
-        </div>
-        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
-      </div>
-
-      <form id="staffLoginForm" class="modal-content">
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 18px;">
-          Only authorized organization officials have access to review partnerships, verify student innovators, and organize competitions.
-        </p>
-
-        <div class="form-group">
-          <label class="form-label" for="staffEmail">Official Email</label>
-          <input type="email" id="staffEmail" class="form-control" placeholder="admin@afostech-students.org" value="admin@afostech-students.org" required>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="staffPassword">Official Password</label>
-          <div class="password-wrapper">
-            <input type="password" id="staffPassword" class="form-control" value="admin123" placeholder="Enter official access key" required>
-            <button type="button" class="btn-password-toggle" data-target="staffPassword" aria-label="Show password" title="Show password">
-              <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <svg class="eye-icon eye-hide" style="display: none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
-          <button type="button" class="btn-outline" onclick="staffDemoQuickLogin()">
-            ⚡ 1-Click Demo Official
-          </button>
-          <button type="submit" class="btn-primary">
-            Sign In to Staff Portal →
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- =========================================================================
        MODAL 5: STAFF OFFICIAL PORTAL & CONTROL CENTER
        ========================================================================= -->
   <div id="staffPortalModal" class="modal-backdrop">
@@ -1196,17 +1040,17 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 6: STUDENT INNOVATOR AUTH (SIGN IN & REGISTRATION / JOIN AFOSTECH)
+       MODAL: UNIFIED ROLE-BASED SIGN IN & STUDENT REGISTRATION
        ========================================================================= -->
-  <div id="innovatorAuthModal" class="modal-backdrop">
+  <div id="authModal" class="modal-backdrop">
     <div class="modal-dialog" style="max-width: 540px;">
       <div class="modal-header">
         <div>
           <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: var(--primary);">
-            Student Innovator Portal
+            AFOSTECH Account Access
           </span>
-          <h3 id="innAuthModalTitle" style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
-            Innovator Sign In / Join AFOSTECH
+          <h3 id="authModalTitle" style="font-size: 1.35rem; font-weight: 900; margin-top: 2px;">
+            Sign In to AFOSTECH
           </h3>
         </div>
         <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
@@ -1215,31 +1059,31 @@
       <div class="modal-content">
         <!-- Dual Tab Switcher -->
         <div class="auth-tab-nav">
-          <button type="button" class="auth-tab-btn active" id="tabInnSignInBtn" onclick="switchInnovatorAuthTab('signin')">
-            🔑 Sign In (Existing Member)
+          <button type="button" class="auth-tab-btn active" id="tabAuthSignInBtn" onclick="switchAuthTab('signin')">
+            🔑 Sign In
           </button>
-          <button type="button" class="auth-tab-btn" id="tabInnSignUpBtn" onclick="switchInnovatorAuthTab('signup')">
-            ✨ Join AFOSTECH (Register)
+          <button type="button" class="auth-tab-btn" id="tabAuthSignUpBtn" onclick="switchAuthTab('signup')">
+            ✨ Join AFOSTECH (Student Sign Up)
           </button>
         </div>
 
-        <!-- TAB 1: SIGN IN PANE (For verified/existing students) -->
-        <div id="innSignInPane" class="auth-pane active">
+        <!-- TAB 1: UNIFIED EMAIL SIGN IN (Role derived from email in backend DB) -->
+        <div id="authSignInPane" class="auth-pane active">
           <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 18px;">
-            Sign in to your authenticated profile to manage your academic CV, track pitch verification, and submit food innovations and research theses.
+            Sign in with your institutional student email or staff official email. Features and controls are granted based on the role linked to your email.
           </p>
 
-          <form id="innovatorSignInForm">
+          <form id="unifiedLoginForm">
             <div class="form-group">
-              <label class="form-label" for="innSignInId">Student Email or Admission No. *</label>
-              <input type="text" id="innSignInId" class="form-control" placeholder="e.g. f.wanjiru@students.jkuat.ac.ke or AG211-0452/2022" value="f.wanjiru@students.jkuat.ac.ke" required>
+              <label class="form-label" for="authLoginEmail">Email Address *</label>
+              <input type="email" id="authLoginEmail" class="form-control" placeholder="e.g. f.wanjiru@students.jkuat.ac.ke or admin@afostech-students.org" value="f.wanjiru@students.jkuat.ac.ke" required>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="innSignInPassword">Innovator Password *</label>
+              <label class="form-label" for="authLoginPassword">Password *</label>
               <div class="password-wrapper">
-                <input type="password" id="innSignInPassword" class="form-control" placeholder="Enter portal password" value="innovator2026" required>
-                <button type="button" class="btn-password-toggle" data-target="innSignInPassword" aria-label="Show password" title="Show password">
+                <input type="password" id="authLoginPassword" class="form-control" placeholder="Enter your account password" value="innovator2026" required>
+                <button type="button" class="btn-password-toggle" data-target="authLoginPassword" aria-label="Show password" title="Show password">
                   <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
@@ -1252,77 +1096,67 @@
               </div>
             </div>
 
-            <!-- Quick Demo Accounts for Seamless Testing -->
+            <!-- Quick Role Test Autofill Helpers -->
             <div style="margin-bottom: 20px;">
               <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
-                ⚡ 1-Click Demo Verified Innovators:
+                ⚡ Quick Demo Credentials by Email Role:
               </span>
               <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('f.wanjiru@students.jkuat.ac.ke')">
-                  🌾 Faith Wanjiru (JKUAT)
+                <button type="button" class="quick-demo-pill" onclick="quickFillAuth('f.wanjiru@students.jkuat.ac.ke', 'innovator2026')">
+                  🎓 Faith Wanjiru (Innovator)
                 </button>
-                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('amina.hassan@students.uonbi.ac.ke')">
-                  🥛 Amina Hassan (UoN)
+                <button type="button" class="quick-demo-pill" onclick="quickFillAuth('amina.hassan@students.uonbi.ac.ke', 'innovator2026')">
+                  🎓 Amina Hassan (Innovator)
                 </button>
-                <button type="button" class="quick-demo-pill" onclick="quickSelectDemoInnovator('g.nabirye@mak.ac.ug')">
-                  🧪 Grace Nabirye (Makerere)
+                <button type="button" class="quick-demo-pill" style="border-color: #bae6fd; background: #f0f9ff; color: #0369a1;" onclick="quickFillAuth('admin@afostech-students.org', 'admin123')">
+                  🛡️ Dr. Kwabena Mensah (Staff Official)
                 </button>
               </div>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
-              <button type="button" class="btn-outline" onclick="switchInnovatorAuthTab('signup')" style="font-size: 0.82rem;">
+              <button type="button" class="btn-outline" onclick="switchAuthTab('signup')" style="font-size: 0.82rem;">
                 New Student? Register →
               </button>
               <button type="submit" class="btn-primary">
-                Sign In to Innovator Portal →
+                Sign In →
               </button>
             </div>
           </form>
         </div>
 
-        <!-- TAB 2: SIGN UP / REGISTER TO JOIN AFOSTECH PANE -->
-        <div id="innSignUpPane" class="auth-pane">
-          <div class="auth-protocol-box">
-            <span style="font-size: 1.5rem; line-height: 1;">🏛️</span>
-            <div>
-              <div style="font-weight: 900; margin-bottom: 2px;">Campus Authenticity Verification Protocol</div>
-              <p style="margin: 0; line-height: 1.45;">
-                When you submit your registration, an automated verification prompt email is dispatched to your university registrar. Once your campus confirms your enrollment authenticity, you automatically join AFOSTECH and gain full privileges to submit innovations and research.
-              </p>
-            </div>
-          </div>
-
-          <form id="innovatorSignUpForm">
+        <!-- TAB 2: SIGN UP / REGISTER AS STUDENT INNOVATOR -->
+        <div id="authSignUpPane" class="auth-pane">
+          <form id="unifiedRegisterForm">
             <div class="form-group">
-              <label class="form-label" for="innSignUpName">Full Student Name *</label>
-              <input type="text" id="innSignUpName" class="form-control" placeholder="e.g. Dennis Kiprono" required>
+              <label class="form-label" for="authRegName">Full Student Name *</label>
+              <input type="text" id="authRegName" class="form-control" placeholder="e.g. Dennis Kiprono" required>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="innSignUpEmail">Student Institutional Email *</label>
-              <input type="email" id="innSignUpEmail" class="form-control" placeholder="e.g. d.kiprono@students.egerton.ac.ke" required>
+              <label class="form-label" for="authRegEmail">Student Institutional Email *</label>
+              <input type="email" id="authRegEmail" class="form-control" placeholder="e.g. d.kiprono@students.egerton.ac.ke" required>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label" for="innSignUpAdm">Admission No. *</label>
-                <input type="text" id="innSignUpAdm" class="form-control" placeholder="e.g. AG14/10492/23" required>
+                <label class="form-label" for="authRegAdm">Admission No. *</label>
+                <input type="text" id="authRegAdm" class="form-control" placeholder="e.g. AG14/10492/23" required>
               </div>
               <div class="form-group">
-                <label class="form-label" for="innSignUpUniversity">University Chapter *</label>
-                <select id="innSignUpUniversity" class="form-control" required></select>
+                <label class="form-label" for="authRegUniversity">University Chapter *</label>
+                <select id="authRegUniversity" class="form-control" required></select>
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label" for="innSignUpDegree">Degree / Academic Program *</label>
-                <input type="text" id="innSignUpDegree" class="form-control" placeholder="e.g. B.Sc. Food Science & Technology" value="B.Sc. Food Science & Technology" required>
+                <label class="form-label" for="authRegDegree">Degree / Academic Program *</label>
+                <input type="text" id="authRegDegree" class="form-control" placeholder="e.g. B.Sc. Food Science & Technology" value="B.Sc. Food Science & Technology" required>
               </div>
               <div class="form-group">
-                <label class="form-label" for="innSignUpYear">Year of Study *</label>
-                <select id="innSignUpYear" class="form-control" required>
+                <label class="form-label" for="authRegYear">Year of Study *</label>
+                <select id="authRegYear" class="form-control" required>
                   <option value="1st Year">1st Year</option>
                   <option value="2nd Year">2nd Year</option>
                   <option value="3rd Year" selected>3rd Year</option>
@@ -1333,10 +1167,10 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="innSignUpPassword">Create Account Password *</label>
+              <label class="form-label" for="authRegPassword">Create Account Password *</label>
               <div class="password-wrapper">
-                <input type="password" id="innSignUpPassword" class="form-control" placeholder="Create a secure portal password" value="student2026" required>
-                <button type="button" class="btn-password-toggle" data-target="innSignUpPassword" aria-label="Show password" title="Show password">
+                <input type="password" id="authRegPassword" class="form-control" placeholder="Create a secure account password" value="student2026" required>
+                <button type="button" class="btn-password-toggle" data-target="authRegPassword" aria-label="Show password" title="Show password">
                   <svg class="eye-icon eye-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
@@ -1350,11 +1184,11 @@
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
-              <button type="button" class="btn-outline" onclick="switchInnovatorAuthTab('signin')" style="font-size: 0.82rem;">
+              <button type="button" class="btn-outline" onclick="switchAuthTab('signin')" style="font-size: 0.82rem;">
                 ← Already Registered? Sign In
               </button>
-              <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #059669 0%, #0284c7 100%);">
-                Join AFOSTECH &amp; Dispatch Prompt →
+              <button type="submit" class="btn-primary">
+                Submit Innovator Registration →
               </button>
             </div>
           </form>
@@ -1595,505 +1429,6 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 12: TRY PRODUCT - ONLINE ORDERING, FREIGHT LOGISTICS & LOCAL STOCKISTS
-       ========================================================================= -->
-  <div id="tryProductModal" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 880px;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); color: white;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <img id="tryModalProductImg" src="assets/spirocracker.svg" alt="Product Prototype" style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: white; padding: 2px; border: 2px solid #34d399;">
-          <div>
-            <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #a7f3d0; letter-spacing: 1px;">
-              🛒 AFOSTECH Commercialization &bull; Direct-to-Consumer &amp; Wholesale
-            </div>
-            <h3 id="tryModalProductTitle" style="font-size: 1.3rem; font-weight: 900; color: white; margin-top: 2px; line-height: 1.2;">
-              Try Product Prototype
-            </h3>
-            <div id="tryModalOriginBadge" style="font-size: 0.78rem; color: #d1fae5; margin-top: 2px;">
-              Formulated by JKUAT Innovators (Kenya)
-            </div>
-          </div>
-        </div>
-        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
-      </div>
-
-      <div class="modal-content" style="padding: 24px;">
-        <!-- Dual Tab Switcher -->
-        <div class="try-modal-tabs">
-          <button id="tryTabBtnOrder" class="try-tab-btn active" onclick="switchTryProductTab('order')">
-            🚚 Order Online &amp; Ship to Me
-          </button>
-          <button id="tryTabBtnStockists" class="try-tab-btn" onclick="switchTryProductTab('stockists')">
-            🏪 Nearest Stores &amp; Campus Outlets
-          </button>
-        </div>
-
-        <!-- TAB 1: ORDER ONLINE & SHIPPING -->
-        <div id="tryTabContentOrder">
-          <form id="tryProductOrderForm" onsubmit="handleTryProductOrderSubmit(event)">
-            <!-- Buyer Location & Address Grid -->
-            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); display: flex; align-items: center; gap: 6px;">
-                  📍 Step 1: Select Your Delivery Destination
-                </h4>
-                <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Used to calculate freight rates &amp; minimum order tier</span>
-              </div>
-
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="tryBuyerCountry">Your Country *</label>
-                  <select id="tryBuyerCountry" class="form-control" onchange="onBuyerLocationChange()" required>
-                    <option value="Kenya">Kenya (East Africa)</option>
-                    <option value="Uganda">Uganda (East Africa)</option>
-                    <option value="Ghana">Ghana (West Africa)</option>
-                    <option value="Nigeria">Nigeria (West Africa)</option>
-                    <option value="South Africa">South Africa (Southern Africa)</option>
-                    <option value="Tanzania">Tanzania (East Africa)</option>
-                    <option value="Rwanda">Rwanda (East Africa)</option>
-                    <option value="Ethiopia">Ethiopia (Horn of Africa)</option>
-                    <option value="United States">United States (International Air Freight)</option>
-                    <option value="United Kingdom">United Kingdom (International Air Freight)</option>
-                    <option value="Other International">Other International Destination</option>
-                  </select>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="tryBuyerCity">City / Town *</label>
-                  <input type="text" id="tryBuyerCity" class="form-control" placeholder="e.g. Nairobi, Kampala, Kumasi, Lagos..." value="Nairobi" oninput="onBuyerLocationChange()" required>
-                </div>
-              </div>
-
-              <div class="form-group" style="margin-bottom: 12px;">
-                <label class="form-label" for="tryBuyerAddress">Physical Delivery Address / Campus Drop-off Point *</label>
-                <input type="text" id="tryBuyerAddress" class="form-control" placeholder="Street, Building, Apartment or University Hall of Residence" required>
-              </div>
-
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="tryBuyerName">Your Full Name *</label>
-                  <input type="text" id="tryBuyerName" class="form-control" placeholder="Dr. / Prof. / Mr. / Ms." required>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="tryBuyerEmail">Email Address *</label>
-                  <input type="email" id="tryBuyerEmail" class="form-control" placeholder="For tracking waybill & receipt" required>
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="tryBuyerPhone">Phone Number (with country code) *</label>
-                  <input type="tel" id="tryBuyerPhone" class="form-control" placeholder="+254 700 000000" required>
-                </div>
-              </div>
-            </div>
-
-            <!-- Dynamic Cross-Border Logistics Notification Banner -->
-            <div id="tryCrossBorderAlert" class="cross-border-notice" style="display: none;">
-              <span style="font-size: 1.5rem;">🌍</span>
-              <div>
-                <strong style="color: #b45309; font-size: 0.9rem;">Cross-Border International Freight Order Detected</strong>
-                <p id="tryCrossBorderAlertText" style="margin-top: 2px;">
-                  The product is formulated in <strong>Kenya</strong> and you are ordering to <strong>Uganda</strong>. To ensure cross-border freight viability, sanitary phytosanitary clearance, and ambient/chilled shipping logistics, <strong>the minimum purchase is the least wholesale unit</strong>. Individual retail sample packs cannot be dispatched internationally.
-                </p>
-              </div>
-            </div>
-
-            <!-- Purchase Tier Selection -->
-            <div style="margin-bottom: 20px;">
-              <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); margin-bottom: 10px;">
-                📦 Step 2: Choose Order Tier &amp; Quantity
-              </h4>
-              <div class="tier-selection-grid">
-                <!-- Retail Single Unit Card -->
-                <div id="tierCardSingle" class="order-tier-card selected" onclick="selectOrderTier('single')">
-                  <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                      <span style="font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 9999px;">
-                        RETAIL SAMPLE
-                      </span>
-                      <input type="radio" name="orderTierRadio" id="tryTierRadioSingle" checked>
-                    </div>
-                    <h5 id="trySingleUnitName" style="font-size: 1rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">Single Pack (150g)</h5>
-                    <p style="font-size: 0.8rem; color: #64748b; line-height: 1.4;">Ideal for sensory tasting, food tech evaluation, or personal nutrition testing.</p>
-                  </div>
-                  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: baseline;">
-                    <div id="trySingleUnitPrice" style="font-size: 1.25rem; font-weight: 900; color: #059669;">$2.00</div>
-                    <span id="trySingleDomesticBadge" style="font-size: 0.72rem; color: #047857; font-weight: 700;">Domestic Only</span>
-                  </div>
-                </div>
-
-                <!-- Wholesale Unit Card -->
-                <div id="tierCardWholesale" class="order-tier-card" onclick="selectOrderTier('wholesale')">
-                  <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                      <span style="font-size: 0.72rem; font-weight: 800; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 9999px;">
-                        WHOLESALE BULK (MIN. EXPORT UNIT)
-                      </span>
-                      <input type="radio" name="orderTierRadio" id="tryTierRadioWholesale">
-                    </div>
-                    <h5 id="tryWholesaleUnitName" style="font-size: 1rem; font-weight: 900; color: var(--navy); margin-bottom: 4px;">Box of 24 Packs</h5>
-                    <p style="font-size: 0.8rem; color: #64748b; line-height: 1.4;">Required for international shipping, institutional cafeterias, supermarkets, or bulk distributors.</p>
-                  </div>
-                  <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: baseline;">
-                    <div id="tryWholesaleUnitPrice" style="font-size: 1.25rem; font-weight: 900; color: #059669;">$40.00</div>
-                    <span style="font-size: 0.72rem; color: #b45309; font-weight: 700;">Global Freight Eligible</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Quantity Selector -->
-              <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 18px;">
-                <div>
-                  <strong id="tryQtyLabel" style="font-size: 0.9rem; color: var(--navy);">Number of Units:</strong>
-                  <div id="tryQtySubtext" style="font-size: 0.78rem; color: #64748b;">Minimum 1 unit</div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <button type="button" class="btn-outline" style="width: 36px; height: 36px; padding: 0; font-size: 1.2rem; font-weight: 900;" onclick="updateOrderQuantity(-1)">−</button>
-                  <input type="number" id="tryOrderQty" value="1" min="1" max="100" style="width: 60px; text-align: center; font-size: 1.1rem; font-weight: 900; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px;" readonly>
-                  <button type="button" class="btn-outline" style="width: 36px; height: 36px; padding: 0; font-size: 1.2rem; font-weight: 900;" onclick="updateOrderQuantity(1)">+</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Cost Breakdown & AFOSTECH Organization Revenue Split -->
-            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
-              <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--navy); margin-bottom: 12px;">
-                🧾 Step 3: Order Summary &amp; Consortium Revenue Split
-              </h4>
-
-              <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px;">
-                <span id="trySummaryItemLabel">Subtotal (1x Unit):</span>
-                <strong id="trySummarySubtotal" style="color: var(--navy);">$2.00</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 8px;">
-                <span id="trySummaryShippingLabel">Standard Courier Shipping:</span>
-                <strong id="trySummaryShipping" style="color: var(--navy);">$2.50</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 900; border-top: 1.5px dashed #cbd5e1; padding-top: 10px; margin-bottom: 14px;">
-                <span>Total Payable:</span>
-                <span id="trySummaryTotal" style="color: #059669;">$4.50</span>
-              </div>
-
-              <!-- AFOSTECH Institutional Revenue Transparency Card -->
-              <div class="revenue-split-bar-wrap">
-                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; margin-bottom: 6px;">
-                  <span style="color: #065f46;">👨‍🔬 85% Student Innovator Lab Fund (<span id="trySplitStudent">$1.70</span>)</span>
-                  <span style="color: #0369a1;">🏛️ 15% AFOSTECH Commercialization (<span id="trySplitOrg">$0.30</span>)</span>
-                </div>
-                <div style="height: 10px; width: 100%; background: #e2e8f0; border-radius: 9999px; overflow: hidden; display: flex;">
-                  <div style="width: 85%; background: linear-gradient(90deg, #10b981, #059669);"></div>
-                  <div style="width: 15%; background: linear-gradient(90deg, #0284c7, #0f172a);"></div>
-                </div>
-                <p style="font-size: 0.74rem; color: #64748b; margin-top: 8px; line-height: 1.45;">
-                  💡 <strong>Consortium Mission:</strong> AFOSTECH processes these sales as an institutional revenue generator. 85% is paid directly to the student innovators for bio-ingredient supplies and pilot scaling; 15% funds inter-university hackathon prizes and patent grants.
-                </p>
-              </div>
-            </div>
-
-            <!-- Payment Method & Confirm -->
-            <div style="margin-bottom: 24px;">
-              <label class="form-label" style="margin-bottom: 8px;">Select Payment Simulation *</label>
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
-                  <input type="radio" name="paymentOption" value="M-Pesa / Mobile Money" checked>
-                  <span>📱 Mobile Money / M-Pesa</span>
-                </label>
-                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
-                  <input type="radio" name="paymentOption" value="Credit/Debit Card">
-                  <span>💳 Card (Visa/Mastercard)</span>
-                </label>
-                <label style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; background: white;">
-                  <input type="radio" name="paymentOption" value="Pan-African Bank Transfer">
-                  <span>🏦 Pan-African EFT</span>
-                </label>
-              </div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-              <button type="button" class="btn-outline js-modal-close">Cancel</button>
-              <button type="submit" id="trySubmitOrderBtn" class="btn-primary" style="padding: 12px 28px; font-size: 0.95rem; background: linear-gradient(135deg, #059669 0%, #047857 100%);">
-                💳 Confirm Order &amp; Pay ($4.50) →
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- TAB 2: PHYSICAL STOCKISTS & PICKUP -->
-        <div id="tryTabContentStockists" style="display: none;">
-          <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div>
-              <h4 style="font-size: 1rem; font-weight: 900; color: #064e3b; margin-bottom: 2px;">
-                🏪 Nearest Physical Stockists &amp; Campus Pilot Stores
-              </h4>
-              <p style="font-size: 0.82rem; color: #047857;">
-                Pick up fresh batches directly from university pilot plants or authenticated regional retail partner grocers.
-              </p>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <span style="font-size: 0.78rem; font-weight: 700; color: #064e3b;">Filter Location:</span>
-              <select id="tryStockistFilterCountry" class="form-control" style="font-size: 0.8rem; padding: 4px 8px; width: auto;" onchange="renderStockistsList()">
-                <option value="all">All Locations</option>
-                <option value="Kenya">Kenya</option>
-                <option value="Uganda">Uganda</option>
-                <option value="Ghana">Ghana</option>
-                <option value="Nigeria">Nigeria</option>
-                <option value="South Africa">South Africa</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Stockists List Container -->
-          <div id="tryStockistsList">
-            <!-- Dynamically populated by renderStockistsList() -->
-          </div>
-
-          <div style="margin-top: 20px; padding: 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; text-align: center;">
-            <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 8px;">
-              Not near any of these retail stockists or located in another region?
-            </p>
-            <button class="btn-outline" style="font-size: 0.82rem; padding: 6px 16px;" onclick="switchTryProductTab('order')">
-              🚚 Switch to Online Courier &amp; Freight Shipping →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================================================================
-       MODAL 13: ORDER CONFIRMATION & CONSORTIUM COMMERCIAL RECEIPT
-       ========================================================================= -->
-  <div id="orderConfirmationModal" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 680px;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
-        <div>
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 800; color: #34d399; letter-spacing: 1px;">
-            Official Commercial Sales Receipt &bull; Consignment Waybill
-          </span>
-          <h3 style="font-size: 1.3rem; font-weight: 900; color: white; margin-top: 2px;">
-            Order Placed Successfully!
-          </h3>
-        </div>
-        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
-      </div>
-
-      <div id="orderConfirmationModalBody" class="modal-content" style="padding: 24px;">
-        <!-- Populated dynamically by openOrderConfirmationModal(orderId) -->
-      </div>
-    </div>
-  </div>
-
-  <!-- =========================================================================
-       MODAL 14: CREATE FOOD SCIENCE POST (Restricted to Innovators)
-       ========================================================================= -->
-  <div id="createFeedPostModal" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 720px;">
-      <div class="modal-header">
-        <div>
-          <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #047857; letter-spacing: 0.8px;">
-            Innovator Knowledge Broadcast
-          </span>
-          <h3 class="modal-title" style="margin-top: 2px;">🥑 Share a Food Science Post</h3>
-        </div>
-        <button class="modal-close-btn js-modal-close" aria-label="Close modal">✕</button>
-      </div>
-
-      <form id="createFeedPostForm" class="modal-content" onsubmit="handleCreateFeedPostSubmit(event)">
-        <!-- Author Identity Banner -->
-        <div id="feedPostAuthorBanner" style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div id="feedPostAuthorAvatar" style="width: 40px; height: 40px; border-radius: 50%; background: #059669; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem;">
-              FW
-            </div>
-            <div>
-              <div id="feedPostAuthorName" style="font-weight: 900; color: #064e3b; font-size: 0.95rem;">Faith Wanjiru</div>
-              <div id="feedPostAuthorMeta" style="font-size: 0.75rem; color: #047857;">JKUAT &bull; B.Sc. Food Science &amp; Technology</div>
-            </div>
-          </div>
-          
-        </div>
-
-        <!-- Topic Category & Post Title -->
-        <div class="form-row">
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="feedPostTopic">Topic Category *</label>
-            <select id="feedPostTopic" class="form-control" required>
-              <option value="#FoodChemistry">🧪 #FoodChemistry (Kitchen &amp; Molecular Science)</option>
-              <option value="#FoodSafetyTips">🛡️ #FoodSafetyTips (Hygiene &amp; Microbiology)</option>
-              <option value="#FermentationTech">🌾 #FermentationTech (Probiotics &amp; Brews)</option>
-              <option value="#WasteUpcycling">♻️ #WasteUpcycling (Bio-Plastics &amp; By-Products)</option>
-              <option value="#AlternativeProtein">🦗 #AlternativeProtein (Insects &amp; Plant Meats)</option>
-              <option value="#FoodProcessingTech">⚙️ #FoodProcessingTech (Pilot Plant Engineering)</option>
-              <option value="#KitchenScience">🍳 #KitchenScience (Daily Cooking Physics)</option>
-              <option value="#ClinicalNutrition">🩺 #ClinicalNutrition (Vitamins &amp; Functional Foods)</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex: 2;">
-            <label class="form-label" for="feedPostTitle">Post Title *</label>
-            <input type="text" id="feedPostTitle" class="form-control" placeholder="e.g. Why Browning Happens &amp; How Lemon Juice Stops It!" required>
-          </div>
-        </div>
-
-        <!-- Post Content Textarea -->
-        <div class="form-group">
-          <label class="form-label" for="feedPostContent">
-            Science Breakdown &amp; Explanation * (Public-Friendly Food Education)
-          </label>
-          <textarea id="feedPostContent" class="form-control" rows="5" placeholder="Explain the food science, kitchen chemistry, laboratory trial, or breakthrough so anyone can learn from it..." required></textarea>
-        </div>
-
-        <!-- Media Attachment Options -->
-        <div class="form-group">
-          <label class="form-label">Attach Media (Picture, Video Clip, or Text Only) *</label>
-          <div style="display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
-              <input type="radio" name="feedMediaType" value="image" checked onchange="toggleFeedMediaInputs('image')"> 📷 Photo / Picture
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
-              <input type="radio" name="feedMediaType" value="video" onchange="toggleFeedMediaInputs('video')"> 🎥 Video / Demo Clip
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 700; color: #1e293b;">
-              <input type="radio" name="feedMediaType" value="text" onchange="toggleFeedMediaInputs('text')"> 📝 Text Only
-            </label>
-          </div>
-
-          <!-- Dynamic Media Input Area -->
-          <div id="feedMediaInputArea" style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 16px;">
-            <div id="feedImageInputGroup">
-              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-                <label class="btn-outline" style="padding: 7px 14px; font-size: 0.8rem; cursor: pointer; background: #ffffff;">
-                  📁 Browse Device Photo (.png, .jpg, .svg)
-                  <input type="file" id="feedPhotoFile" accept="image/*" style="display: none;" onchange="handleFeedPhotoUpload(this)">
-                </label>
-                <span style="font-size: 0.8rem; color: #64748b;">or select demo preset:</span>
-                <select id="feedPresetImageSelect" class="form-control" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" onchange="applyFeedPresetMedia(this.value, 'image')">
-                  <option value="">-- Choose Scientific Visual Preset --</option>
-                  <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Browning Trial</option>
-                  <option value="assets/feed_bioplastic.svg">🥭 Chitosan-Mango Bio-Film 14-Day Assay</option>
-                  <option value="assets/feed_bsf_protein.svg">🦗 Hermetia Protein LCA Carbon &amp; Water Analysis</option>
-                  <option value="assets/spirocracker.svg">🍪 Vacuum Baked Spirulina Wafer Crisp</option>
-                  <option value="assets/mobiyog.svg">🐪 Camel Milk Synbiotic Ferment</option>
-                </select>
-              </div>
-              <input type="text" id="feedImageUrl" class="form-control" placeholder="Or enter image URL: https://... (or assets/feed_avocado.svg)">
-            </div>
-
-            <div id="feedVideoInputGroup" style="display: none;">
-              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-                <label class="btn-outline" style="padding: 7px 14px; font-size: 0.8rem; cursor: pointer; background: #ffffff;">
-                  📁 Browse Demo Clip (.mp4, .webm)
-                  <input type="file" id="feedVideoFile" accept="video/*" style="display: none;" onchange="handleFeedVideoUpload(this)">
-                </label>
-                <span style="font-size: 0.8rem; color: #64748b;">or select demo preset:</span>
-                <select id="feedPresetVideoSelect" class="form-control" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" onchange="applyFeedPresetMedia(this.value, 'video')">
-                  <option value="">-- Choose Pilot Demo Preset --</option>
-                  <option value="assets/feed_microfluidizer.svg">⚡ 1,800 Bar Microfluidizer Emulsification Demo (03:15)</option>
-                  <option value="assets/feed_bioplastic.svg">🍓 BioChito Antimicrobial Strawberry Test (02:40)</option>
-                </select>
-              </div>
-              <div style="display: flex; gap: 10px;">
-                <input type="text" id="feedVideoUrl" class="form-control" placeholder="Video URL or player demo: assets/feed_microfluidizer.svg" style="flex: 2;">
-                <input type="text" id="feedVideoDuration" class="form-control" placeholder="Duration (e.g. 02:45)" style="flex: 1;" value="02:30">
-              </div>
-            </div>
-
-            <!-- Media Caption -->
-            <div id="feedCaptionGroup" style="margin-top: 10px;">
-              <input type="text" id="feedMediaCaption" class="form-control" placeholder="Media caption (e.g. Microscopic visualization of cell wall breakdown...)">
-            </div>
-
-            <!-- Preview Thumbnail -->
-            <div id="feedMediaPreviewBox" style="display: none; margin-top: 12px; background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0; align-items: center; justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="feedPreviewIcon" style="font-size: 1.4rem;">📷</span>
-                <div>
-                  <strong id="feedPreviewTitle" style="font-size: 0.82rem; color: #0f172a; display: block;">media_file.jpg</strong>
-                  <span id="feedPreviewSize" style="font-size: 0.72rem; color: #64748b;">Ready to broadcast</span>
-                </div>
-              </div>
-              <button type="button" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 0.75rem; font-weight: 700;" onclick="clearFeedMediaPreview()">✕ Remove</button>
-            </div>
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-          <button type="button" class="btn-outline js-modal-close">Cancel</button>
-          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #059669, #0284c7);">
-            Publish to Community Feed →
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- =========================================================================
-       MODAL 15: DIRECT MESSAGE TO INNOVATOR (Open to Anyone)
-       ========================================================================= -->
-  <div id="directMessageModal" class="modal-backdrop">
-    <div class="modal-dialog" style="max-width: 580px;">
-      <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;">
-        <div>
-          <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 800; color: #bae6fd; letter-spacing: 0.8px;">
-            Direct Scientific Connect
-          </span>
-          <h3 class="modal-title" style="margin-top: 2px; color: white;">✉️ Message Student Innovator</h3>
-        </div>
-        <button class="modal-close-btn js-modal-close" style="color: white; border-color: rgba(255,255,255,0.3);" aria-label="Close modal">✕</button>
-      </div>
-
-      <form id="directMessageForm" class="modal-content" onsubmit="handleDirectMessageSubmit(event)">
-        <!-- Target Innovator Header -->
-        <div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;">
-          <div style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #0284c7;">Recipient:</div>
-          <div id="dmRecipientName" style="font-size: 1.05rem; font-weight: 900; color: #0c4a6e; margin-top: 2px;">Faith Wanjiru (JKUAT)</div>
-          <div id="dmPostReference" style="font-size: 0.78rem; color: #0369a1; margin-top: 2px;">
-            Regarding post: <em>"Why Cut Apples &amp; Avocados Turn Brown"</em>
-          </div>
-        </div>
-
-        <input type="hidden" id="dmPostId">
-        <input type="hidden" id="dmAuthorName">
-        <input type="hidden" id="dmUniversityId">
-
-        <div class="form-row">
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="dmSenderName">Your Name / Organization *</label>
-            <input type="text" id="dmSenderName" class="form-control" placeholder="e.g. Chef Daniel / Sarah M." required>
-          </div>
-          <div class="form-group" style="flex: 1;">
-            <label class="form-label" for="dmSenderContact">Your Email / Phone Number *</label>
-            <input type="text" id="dmSenderContact" class="form-control" placeholder="e.g. daniel@cuisine.com / +254..." required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="dmInquiryType">Inquiry Purpose *</label>
-          <select id="dmInquiryType" class="form-control" required>
-            <option value="General Question">❓ General Food Science / Recipe Question</option>
-            <option value="Research Collaboration">🤝 University Research Collaboration</option>
-            <option value="Commercial Inquiry">💼 Industry / Commercial Licensing Inquiry</option>
-            <option value="Media Request">🎙️ Media / Podcast / Interview Request</option>
-            <option value="Mentorship">🎓 Mentorship &amp; Academic Advice</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="dmMessageText">Your Message to the Innovator *</label>
-          <textarea id="dmMessageText" class="form-control" rows="4" placeholder="Write your question, feedback, or collaboration proposal here..." required></textarea>
-        </div>
-
-        <div style="background: #f8fafc; border-radius: 8px; padding: 10px 14px; font-size: 0.76rem; color: #64748b; margin-bottom: 20px; border: 1px solid #e2e8f0;">
-          🔒 <strong>Confidential Student Channel:</strong> Your message will be dispatched directly to the innovator's AFOSTECH student dashboard and academic email.
-        </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
-          <button type="button" class="btn-outline js-modal-close">Cancel</button>
-          <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
-            Send Message to Innovator →
-          </button>
-        </div>
-      </form>
-    </div>
-  </
-
-  <!-- =========================================================================
        MODAL: INNOVATOR PRODUCT IMAGE STUDIO & EDITOR
        ========================================================================= -->
   <div id="editProductImageModal" class="modal-backdrop">
@@ -2148,8 +1483,6 @@
                   <option value="assets/biochitowrap.svg">🥭 BioChito Mango Biopolymer Wrap</option>
                   <option value="assets/progrub.svg">🦗 ProGrub™ Insect Protein Meal</option>
                   <option value="assets/enzibrew.svg">🌾 EnziBrew Sorghum Beverage</option>
-                  <option value="assets/feed_avocado.svg">🥑 Avocado PPO Enzymatic Trial</option>
-                  <option value="assets/feed_bioplastic.svg">🍓 Strawberry Shelf-Life Film</option>
                 </select>
               </div>
               <input type="text" id="productImageStudioUrl" class="form-control" style="font-size: 0.78rem; padding: 6px 10px;" placeholder="Or paste image URL (https://...)" onchange="handleStudioUrlInput(this.value)">
@@ -2270,7 +1603,6 @@ div>
             <li><a href="#" onclick="switchTab('dashboard'); return false;">Consortium Dashboard</a></li>
             <li><a href="#" onclick="switchTab('catalog'); return false;">Innovations Showcase</a></li>
             <li><a href="#" onclick="switchTab('theses'); return false;">Research Theses Repository</a></li>
-            <li><a href="#" onclick="switchTab('feed'); return false;">Community Food Feed</a></li>
             <li><a href="#" onclick="switchTab('leaderboard'); return false;">University Standings</a></li>
             <li><a href="#" onclick="switchTab('innovators'); return false;">Board of Honour</a></li>
             <li><a href="#" onclick="switchTab('news'); return false;">News &amp; Events</a></li>
@@ -2304,7 +1636,7 @@ div>
           </p>
           <div style="display: flex; gap: 8px;">
             <button class="btn-utility partner js-open-partnership">Request Partnership</button>
-            <button class="btn-utility js-open-staff-login">Staff Login</button>
+            <button class="btn-utility js-open-auth">Sign In</button>
           </div>
         </div>
       </div>
