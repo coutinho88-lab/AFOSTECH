@@ -788,7 +788,7 @@ function renderDashboard() {
           <span class="spotlight-univ">${featured.universityName}</span>
         </div>
         <img src="${featured.image}" alt="${featured.title}" class="spotlight-img" onclick="openProjectDetail('${featured.id}')">
-        <div style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.74rem; font-weight: 800; color: ${theme.text}; background: ${theme.bg}; border: 1px solid ${theme.border}; margin-bottom: 6px;">
+        <div style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.74rem; font-weight: 800; color: ${theme.text}; background: ${theme.bg}; border: 1px solid ${theme.border}; margin-bottom: 6px; max-width: 100%;">
           ${theme.icon} ${theme.label}
         </div>
         <h3 class="spotlight-title" onclick="openProjectDetail('${featured.id}')">${featured.title}</h3>
@@ -798,12 +798,14 @@ function renderDashboard() {
             <span>Sensory Index:</span>
             <strong>⭐ ${featured.sensoryScore}/10</strong>
           </div>
-          <button class="btn-primary" style="padding: 7px 18px; font-size: 0.85rem;" onclick="openProjectDetail('${featured.id}')">
-            View Prototype &amp; Team →
-          </button>
-          <button class="btn-try-product" onclick="openTryProductModal('${featured.id}')" title="Purchase or locate nearest stockist">
-            🛒 Try Product
-          </button>
+          <div class="spotlight-footer-actions">
+            <button class="btn-primary spotlight-detail-btn" onclick="openProjectDetail('${featured.id}')">
+              View Prototype &amp; Team →
+            </button>
+            <button class="btn-try-product spotlight-try-btn" onclick="openTryProductModal('${featured.id}')" title="Purchase or locate nearest stockist">
+              🛒 Try Product
+            </button>
+          </div>
         </div>
       `;
     }
@@ -820,13 +822,13 @@ function renderDashboard() {
   const dashNewsContainer = document.getElementById('dashboardNewsFlow');
   if (dashNewsContainer) {
     dashNewsContainer.innerHTML = AppState.news.slice(0, 2).map(n => `
-      <div style="background: white; border-radius: 12px; padding: 16px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 10px;">
-        <div>
-          <span style="font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 9999px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; margin-right: 6px;">${n.badge}</span>
-          <strong style="font-size: 0.92rem; color: var(--navy);">${n.title}</strong>
-          <span style="font-size: 0.78rem; color: #64748b; margin-left: 8px;">• ${n.date}</span>
+      <div class="dashboard-news-item">
+        <div class="dashboard-news-meta">
+          <span class="dashboard-news-badge">${n.badge}</span>
+          <strong class="dashboard-news-title">${n.title}</strong>
+          <span class="dashboard-news-date">• ${n.date}</span>
         </div>
-        <button class="btn-outline" style="padding: 5px 12px; font-size: 0.78rem;" onclick="switchTab('news')">Read Update →</button>
+        <button class="btn-outline dashboard-news-btn" onclick="switchTab('news')">Read Update →</button>
       </div>
     `).join('');
   }
