@@ -585,7 +585,9 @@ function createAppServer(options = {}) {
           theses: db.prepare('SELECT COUNT(*) AS c FROM theses').get().c,
           partnershipRequests: db.prepare('SELECT COUNT(*) AS c FROM partnership_requests').get().c
         };
-        return sendJson(res, 200, { ok: true, db: 'sqlite', counts });
+        return sendJson(res, 200, { ok: true, db: 'sqlite', app: options.primaryApp || 'portal', counts }, {
+          'Access-Control-Allow-Origin': '*'
+        });
       }
 
       if (pathname === '/api/bootstrap' && method === 'GET') {

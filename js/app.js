@@ -2169,7 +2169,7 @@ function openProjectDetail(projectId) {
             Try &amp; Order This Food Prototype
           </h4>
           <p style="font-size: 0.82rem; color: #047857; line-height: 1.45;">
-            Directs you to our dedicated <strong>AFOSTECH Marketplace App</strong> to order samples/wholesale packs or locate physical stores.
+            Directs you to our <strong>AFOSTECH Food Feed &amp; Marketplace App</strong> to order samples/wholesale packs or locate physical stores.
           </p>
         </div>
       </div>
@@ -3506,17 +3506,48 @@ function showToast(message) {
 // ============================================================================
 // TRY PRODUCT REDIRECT TO STANDALONE FEED & MARKETPLACE APP FOLDER
 // ============================================================================
-function openTryProductModal(projectId) {
-  let targetUrl;
+function buildFoodFeedAppTryUrl(projectId, originBase) {
+  const qs = `?tab=marketplace&product=${encodeURIComponent(projectId)}&source=afostech`;
+  if (originBase) return `${originBase}/index.html${qs}`;
   if (isHttpOrigin()) {
-    targetUrl = window.location.pathname.startsWith('/portal/')
-      ? `/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`
-      : `/foodfeed-app/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`;
-  } else {
-    targetUrl = `../AFOSTECH-FoodFeed/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`;
+    if (window.location.pathname.startsWith('/portal/')) {
+      return `/index.html${qs}`;
+    }
+    if (AppState.isBackendOnline) {
+      return `/foodfeed-app/index.html${qs}`;
+    }
   }
-  showToast('🛒 Opening AFOSTECH Marketplace App...');
-  window.location.href = targetUrl;
+  return `../AFOSTECH-FoodFeed/index.html${qs}`;
+}
+
+async function openTryProductModal(projectId) {
+  showToast('🛒 Opening AFOSTECH Food Feed App (Marketplace)...');
+
+  if (isHttpOrigin() && !window.location.pathname.startsWith('/portal/') && !AppState.isBackendOnline) {
+    // Live Server / Five Server / static HTTP fallback: check sibling folder first, then Food Feed App local server (:3001)
+    try {
+      const sibResp = await fetch('../AFOSTECH-FoodFeed/index.html', { method: 'HEAD' });
+      if (sibResp.ok) {
+        window.location.href = buildFoodFeedAppTryUrl(projectId);
+        return;
+      }
+    } catch (e) {}
+
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 500);
+        const health = await fetch('http://localhost:3001/api/health', { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (health.ok) {
+          window.location.href = buildFoodFeedAppTryUrl(projectId, 'http://localhost:3001');
+          return;
+        }
+      } catch (e) {}
+    }
+  }
+
+  window.location.href = buildFoodFeedAppTryUrl(projectId);
 }
 
 // Helper: Escape HTML
