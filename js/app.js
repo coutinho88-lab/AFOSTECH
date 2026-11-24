@@ -3507,10 +3507,15 @@ function showToast(message) {
 // TRY PRODUCT REDIRECT TO STANDALONE FEED & MARKETPLACE APP FOLDER
 // ============================================================================
 function openTryProductModal(projectId) {
-  const targetUrl = isHttpOrigin()
-    ? `/foodfeed-app/marketplace.html?product=${encodeURIComponent(projectId)}`
-    : `../AFOSTECH-FoodFeed/marketplace.html?product=${encodeURIComponent(projectId)}`;
-  showToast('🛒 Directing you to the AFOSTECH Marketplace App...');
+  let targetUrl;
+  if (isHttpOrigin()) {
+    targetUrl = window.location.pathname.startsWith('/portal/')
+      ? `/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`
+      : `/foodfeed-app/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`;
+  } else {
+    targetUrl = `../AFOSTECH-FoodFeed/index.html?tab=marketplace&product=${encodeURIComponent(projectId)}`;
+  }
+  showToast('🛒 Opening AFOSTECH Marketplace App...');
   window.location.href = targetUrl;
 }
 

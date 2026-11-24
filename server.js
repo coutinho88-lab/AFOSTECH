@@ -20,6 +20,11 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.webmanifest': 'application/manifest+json',
   '.pdf': 'application/pdf',
   '.doc': 'application/msword',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -147,6 +152,45 @@ function mapUniversityRow(u) {
   };
 }
 
+function defaultCommercialForProject(p) {
+  const originCountry = (p.university_name && p.university_name.includes('Makerere'))
+    ? 'Uganda'
+    : (p.university_name && p.university_name.includes('KNUST'))
+      ? 'Ghana'
+      : (p.university_name && p.university_name.includes('Ibadan'))
+        ? 'Nigeria'
+        : (p.university_name && p.university_name.includes('Stellenbosch'))
+          ? 'South Africa'
+          : 'Kenya';
+
+  return {
+    singleUnit: 'Single Prototype Pack (150g)',
+    singlePriceUSD: 2.5,
+    singlePriceFormatted: '$2.50',
+    wholesaleUnit: 'Wholesale Carton (20 Units)',
+    wholesalePriceUSD: 42.0,
+    wholesalePriceFormatted: '$42.00',
+    wholesaleMinQuantity: 1,
+    originCountry,
+    originCity: originCountry === 'Kenya' ? 'Nairobi' : 'Main Campus',
+    leadInnovatorPayoutPct: 85,
+    organizationRevenuePct: 15,
+    inStock: true,
+    leadTimeDays: '2 - 4 Days Domestic / 5 - 8 Days Regional Freight',
+    stockists: [
+      {
+        name: `${p.university_name || 'Campus'} Food Science Pilot Outlet`,
+        city: originCountry === 'Kenya' ? 'Nairobi' : 'University Campus',
+        country: originCountry,
+        address: `Department of Food Science & Technology, ${p.university_name || 'Partner Campus'}`,
+        phone: '+254 700 120 450',
+        hours: 'Mon-Sat 8:00 AM - 5:00 PM',
+        status: 'In Stock (Pilot Batch)'
+      }
+    ]
+  };
+}
+
 function mapProjectRow(p) {
   return {
     id: p.id,
@@ -173,7 +217,118 @@ function mapProjectRow(p) {
     processFlow: safeJsonParse(p.process_flow_json, []),
     image: p.image,
     badges: safeJsonParse(p.badges_json, []),
+    commercial: safeJsonParse(p.commercial_json, null) || defaultCommercialForProject(p),
     createdByUserId: p.created_by_user_id || null
+  };
+}
+
+function resolveLinkedAfostechUser(db, email, linkedUserId) {
+  let row = null;
+  if (linkedUserId) {
+    row = db.prepare('SELECT * FROM users WHERE id = ?').get(linkedUserId);
+  }
+  if (!row && email) {
+    row = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+  }
+  if (!row) return null;
+  return mapUserRow(row, true);
+}
+
+function mapAppAccountRow(row, db) {
+  if (!row) return null;
+  const linked = resolveLinkedAfostechUser(db, row.email, row.linked_afostech_user_id);
+  const canSubmitAFOSTECH = Boolean(
+    linked && (linked.role === 'staff' || (linked.role === 'innovator' && linked.membershipStatus !== 'Pending Institutional Confirmation'))
+  );
+  return {
+    id: row.id,
+    name: row.name,
+    profession: row.profession,
+    email: row.email,
+    phone: row.phone || '',
+    about: row.about || '',
+    avatarUrl: row.avatar_url || '',
+    linkedAfostechUserId: linked ? linked.id : (row.linked_afostech_user_id || null),
+    linkedAfostechUser: linked ? {
+      id: linked.id,
+      name: linked.name,
+      email: linked.email,
+      role: linked.role,
+      universityId: linked.universityId,
+      universityName: linked.universityName,
+      universityShortName: linked.universityShortName,
+      admissionNo: linked.admissionNo,
+      degree: linked.degree,
+      membershipStatus: linked.membershipStatus,
+      verified: linked.verified
+    } : null,
+    isAFOSTECHLinked: Boolean(linked),
+    canSubmitAFOSTECH,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapFeedPostRow(p, comments, likedSet, repostedSet) {
+  return {
+    id: p.id,
+    appAccountId: p.app_account_id || null,
+    linkedUserId: p.linked_user_id || null,
+    authorName: p.author_name,
+    authorProfession: p.author_profession || p.author_degree || 'Food Science Innovator',
+    authorAvatar: p.author_avatar || (p.author_name ? p.author_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'FS'),
+    authorAvatarUrl: p.author_avatar_url || '',
+    authorColor: p.author_color || '#059669',
+    universityId: p.university_id || null,
+    universityName: p.university_name || 'AFOSTECH Community',
+    authorDegree: p.author_degree || '',
+    authorAdmissionNo: p.author_admission_no || '',
+    topicTag: p.topic_tag || '#FoodChemistry',
+    topicLabel: p.topic_label || 'Food Science',
+    title: p.title || '',
+    content: p.content || '',
+    mediaType: p.media_type || 'text',
+    mediaUrl: p.media_url || '',
+    mediaCaption: p.media_caption || '',
+    videoDuration: p.video_duration || '01:45',
+    likesCount: p.likes_count || 0,
+    repostsCount: p.reposts_count || 0,
+    isLiked: Boolean(likedSet && likedSet.has(p.id)),
+    isReposted: Boolean(repostedSet && repostedSet.has(p.id)),
+    timeAgo: p.time_ago || 'Just now',
+    datePosted: p.date_posted || 'Nov 2026',
+    comments: (comments || []).map(c => ({
+      id: c.id,
+      authorName: c.author_name,
+      authorRole: c.author_profession || 'Community Reader',
+      authorProfession: c.author_profession || 'Community Reader',
+      authorAvatar: c.author_avatar || 'FS',
+      authorAvatarUrl: c.author_avatar_url || '',
+      timeAgo: c.time_ago || 'Just now',
+      text: c.text
+    }))
+  };
+}
+
+function mapMarketplaceOrderRow(o) {
+  return {
+    id: o.id,
+    projectId: o.project_id,
+    productName: o.product_name,
+    buyerName: o.buyer_name,
+    buyerEmail: o.buyer_email || '',
+    buyerCity: o.buyer_city || '',
+    buyerCountry: o.buyer_country || 'Kenya',
+    tier: o.tier || 'single',
+    quantity: o.quantity || 1,
+    unitName: o.unit_name || 'Unit',
+    subtotalUSD: o.subtotal_usd || 0,
+    shippingUSD: o.shipping_usd || 0,
+    totalUSD: o.total_usd || 0,
+    studentPayoutUSD: o.student_payout_usd || 0,
+    afostechRevenueUSD: o.afostech_revenue_usd || 0,
+    status: o.status || 'Confirmed',
+    createdAt: o.created_at
   };
 }
 
@@ -302,7 +457,7 @@ function saveBase64File(dataUrl, subdir, baseName, uploadsRoot = UPLOADS_DIR) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
     return null;
   }
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  const match = dataUrl.match(/^data:([^;,]+)(?:;[^,]*)?;base64,(.+)$/);
   if (!match) return null;
   const mime = match[1].toLowerCase();
   const b64 = match[2];
@@ -312,7 +467,11 @@ function saveBase64File(dataUrl, subdir, baseName, uploadsRoot = UPLOADS_DIR) {
     'image/jpg': '.jpg',
     'image/png': '.png',
     'image/webp': '.webp',
+    'image/gif': '.gif',
     'image/svg+xml': '.svg',
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov',
     'application/pdf': '.pdf',
     'application/msword': '.doc',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
@@ -359,16 +518,47 @@ function createAppServer(options = {}) {
     let token = cookies.afostech_session;
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Bearer ')) {
-      token = authHeader.slice(7).trim();
+      const bearer = authHeader.slice(7).trim();
+      const decoded = verifyToken(bearer, secret);
+      if (decoded && decoded.type !== 'app') {
+        token = bearer;
+      }
     }
     const payload = verifyToken(token, secret);
-    if (!payload || !payload.sub) return null;
+    if (!payload || !payload.sub || payload.type === 'app') return null;
     const row = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.sub);
     return row ? mapUserRow(row, true) : null;
   }
 
-  function getVoterKey(req, user) {
+  function getSessionAppAccount(req) {
+    const cookies = parseCookies(req);
+    let token = cookies.afostech_app_session;
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const bearer = authHeader.slice(7).trim();
+      const decoded = verifyToken(bearer, secret);
+      if (decoded && decoded.type === 'app') {
+        token = bearer;
+      }
+    }
+    const payload = verifyToken(token, secret);
+    if (!payload || !payload.sub || payload.type !== 'app') return null;
+    const row = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(payload.sub);
+    return row ? mapAppAccountRow(row, db) : null;
+  }
+
+  function getEffectiveSubmitter(req, currentUser, appUser) {
+    if (currentUser) return currentUser;
+    if (appUser && appUser.canSubmitAFOSTECH && appUser.linkedAfostechUserId) {
+      const row = db.prepare('SELECT * FROM users WHERE id = ?').get(appUser.linkedAfostechUserId);
+      return row ? mapUserRow(row, true) : null;
+    }
+    return null;
+  }
+
+  function getVoterKey(req, user, appUser) {
     if (user) return `user:${user.id}`;
+    if (appUser) return `app:${appUser.id}`;
     const cookies = parseCookies(req);
     if (cookies.afostech_voter) return `voter:${cookies.afostech_voter}`;
     return `ip:${req.socket.remoteAddress || 'anon'}`;
@@ -381,6 +571,8 @@ function createAppServer(options = {}) {
 
     try {
       const currentUser = getSessionUser(req);
+      const currentAppUser = getSessionAppAccount(req);
+      const effectiveSubmitter = getEffectiveSubmitter(req, currentUser, currentAppUser);
 
       // ------------------------------------------------------------------
       // API ROUTES
@@ -579,11 +771,11 @@ function createAppServer(options = {}) {
       }
 
       if (pathname === '/api/projects' && method === 'POST') {
-        if (!currentUser) return sendJson(res, 401, { error: 'Sign in required to submit food innovations.' });
+        if (!effectiveSubmitter) return sendJson(res, 401, { error: 'Sign in with a verified AFOSTECH innovator account to submit food innovations.' });
         const body = await readJsonBody(req);
         const title = (body.title || '').trim();
         const tagline = (body.tagline || '').trim();
-        const universityId = body.universityId || currentUser.universityId || 'jkuat';
+        const universityId = body.universityId || effectiveSubmitter.universityId || 'jkuat';
         const category = body.category || 'functional';
 
         if (!title || !tagline) {
@@ -591,7 +783,7 @@ function createAppServer(options = {}) {
         }
 
         const univ = db.prepare('SELECT * FROM universities WHERE id = ?').get(universityId);
-        const univName = univ ? univ.name : (currentUser.universityName || 'Partner University');
+        const univName = univ ? univ.name : (effectiveSubmitter.universityName || 'Partner University');
         const projectId = `custom-${Date.now()}`;
 
         let imagePath = (body.image || '').trim() || 'assets/spirocracker.svg';
@@ -600,10 +792,10 @@ function createAppServer(options = {}) {
           if (saved) imagePath = saved;
         }
 
-        const leadAdmissionNo = (body.leadAdmissionNo || currentUser.admissionNo || 'MEMBER').trim();
+        const leadAdmissionNo = (body.leadAdmissionNo || effectiveSubmitter.admissionNo || 'MEMBER').trim();
         const authors = Array.isArray(body.authors) && body.authors.length > 0
           ? body.authors
-          : [{ name: currentUser.name, admissionNo: leadAdmissionNo, role: body.authorRole || 'Lead Innovator', year: 'Student Lead', contribution: 'Lead formulation author.' }];
+          : [{ name: effectiveSubmitter.name, admissionNo: leadAdmissionNo, role: body.authorRole || 'Lead Innovator', year: 'Student Lead', contribution: 'Lead formulation author.' }];
 
         let dissertationFile = body.dissertationFile || {
           name: `${title.replace(/\s+/g, '_')}_Dissertation.pdf`,
@@ -623,20 +815,22 @@ function createAppServer(options = {}) {
         const sensoryProfile = body.sensoryProfile || { taste: 8.9, aroma: 8.7, textureCrunch: 9.0, colorAppeal: 8.8, overallAcceptability: 8.9 };
         const processFlow = body.processFlow || ['Preparation of raw biomass and indigenous ingredients.', 'Controlled laboratory formulating, pasteurization and testing.', 'Sensory panel trials and thesis verification.'];
 
+        const commercialObj = body.commercial || defaultCommercialForProject({ university_name: univName });
+
         db.prepare(`
           INSERT INTO projects (
             id, title, tagline, university_id, university_name, lead_admission_no,
             category, category_label, authors_json, dissertation_file_json,
             featured, upvotes, peer_reviews, sustainability_score, sensory_score,
             status, summary, ingredients_json, nutrition_json, sensory_profile_json,
-            process_flow_json, image, badges_json, created_by_user_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 4.8, 8.9, 'Newly Published by Student', ?, ?, ?, ?, ?, ?, ?, ?)
+            process_flow_json, image, badges_json, commercial_json, created_by_user_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 4.8, 8.9, 'Newly Published by Student', ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           projectId, title, tagline, universityId, univName, leadAdmissionNo,
           category, category.toUpperCase(), JSON.stringify(authors), JSON.stringify(dissertationFile),
           body.summary || tagline, JSON.stringify(ingredients), JSON.stringify(nutrition),
           JSON.stringify(sensoryProfile), JSON.stringify(processFlow), imagePath,
-          JSON.stringify(badges), currentUser.id
+          JSON.stringify(badges), JSON.stringify(commercialObj), effectiveSubmitter.id
         );
 
         // Log internal dispatch for institutional oversight
@@ -723,18 +917,18 @@ function createAppServer(options = {}) {
       }
 
       if (pathname === '/api/theses' && method === 'POST') {
-        if (!currentUser) return sendJson(res, 401, { error: 'Sign in required to submit research theses.' });
+        if (!effectiveSubmitter) return sendJson(res, 401, { error: 'Sign in with a verified AFOSTECH innovator account to submit research theses.' });
         const body = await readJsonBody(req);
         const title = (body.title || '').trim();
         const tagline = (body.tagline || '').trim();
         const abstract = (body.abstract || '').trim();
         if (!title || !abstract) return sendJson(res, 400, { error: 'Thesis title and abstract are required.' });
 
-        const universityId = body.universityId || currentUser.universityId || 'jkuat';
+        const universityId = body.universityId || effectiveSubmitter.universityId || 'jkuat';
         const univ = db.prepare('SELECT * FROM universities WHERE id = ?').get(universityId);
         const thesisId = `thesis-${Date.now()}`;
         const fileObj = body.file || {
-          fileName: `${(body.author || currentUser.name).replace(/\s+/g, '_')}_2026_Thesis.pdf`,
+          fileName: `${(body.author || effectiveSubmitter.name).replace(/\s+/g, '_')}_2026_Thesis.pdf`,
           fileSize: '4.2 MB',
           pages: 72,
           downloadsCount: 1
@@ -752,12 +946,12 @@ function createAppServer(options = {}) {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'November 2026', '2026', ?, ?, ?, 1)
         `).run(
           thesisId, title, tagline,
-          (body.author || currentUser.name).trim(),
-          (body.authorAdmissionNo || currentUser.admissionNo || 'MEMBER').trim(),
-          (body.authorDegree || currentUser.degree || 'B.Sc. Food Science & Technology').trim(),
-          currentUser.verified ? 1 : 0,
+          (body.author || effectiveSubmitter.name).trim(),
+          (body.authorAdmissionNo || effectiveSubmitter.admissionNo || 'MEMBER').trim(),
+          (body.authorDegree || effectiveSubmitter.degree || 'B.Sc. Food Science & Technology').trim(),
+          effectiveSubmitter.verified ? 1 : 0,
           universityId,
-          univ ? univ.short_name : (currentUser.universityShortName || 'Affiliate'),
+          univ ? univ.short_name : (effectiveSubmitter.universityShortName || 'Affiliate'),
           (body.supervisors || 'Department Research Committee').trim(),
           univ ? (univ.faculty || 'Faculty of Agriculture & Food Science') : 'School of Food Science',
           body.category || 'functional',
@@ -886,6 +1080,456 @@ function createAppServer(options = {}) {
       }
 
       // ------------------------------------------------------------------
+      // PHONE APP (AFOSTECH-FoodFeed): ACCOUNT AUTH, PROFILE, FEED & MARKETPLACE
+      // ------------------------------------------------------------------
+      if (pathname === '/api/app/bootstrap' && method === 'GET') {
+        const orgRow = db.prepare('SELECT data_json FROM organization WHERE id = ?').get('afostech');
+        const universities = db.prepare('SELECT * FROM universities').all().map(mapUniversityRow);
+        const projects = db.prepare('SELECT * FROM projects ORDER BY featured DESC, upvotes DESC').all().map(mapProjectRow);
+        const thesesRows = db.prepare('SELECT * FROM theses ORDER BY rowid DESC').all();
+        const allThesisComments = db.prepare('SELECT * FROM thesis_comments ORDER BY rowid ASC').all();
+        const thesisCommentsById = {};
+        for (const c of allThesisComments) {
+          if (!thesisCommentsById[c.thesis_id]) thesisCommentsById[c.thesis_id] = [];
+          thesisCommentsById[c.thesis_id].push(c);
+        }
+        const theses = thesesRows.map(t => mapThesisRow(t, thesisCommentsById[t.id] || []));
+        const innovators = db.prepare("SELECT * FROM users WHERE role = 'innovator' AND membership_status != 'Pending Institutional Confirmation'").all().map(r => mapUserRow(r, false));
+        const news = db.prepare('SELECT * FROM news').all().map(n => ({
+          id: n.id, badge: n.badge, badgeColor: n.badge_color, title: n.title,
+          date: n.date, summary: n.summary, actionLabel: n.action_label, link: n.link
+        }));
+        const competitions = db.prepare('SELECT * FROM competitions').all().map(c => ({
+          id: c.id, title: c.title, theme: c.theme, grandPrize: c.grand_prize,
+          deadline: c.deadline, daysLeft: c.days_left, participants: c.participants,
+          stages: safeJsonParse(c.stages_json, [])
+        }));
+
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const likedSet = new Set(db.prepare('SELECT post_id FROM feed_post_likes WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
+        const repostedSet = new Set(db.prepare('SELECT post_id FROM feed_post_reposts WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
+
+        const feedRows = db.prepare('SELECT * FROM feed_posts ORDER BY rowid DESC').all();
+        const feedCommentRows = db.prepare('SELECT * FROM feed_comments ORDER BY rowid ASC').all();
+        const commentsByPost = {};
+        for (const fc of feedCommentRows) {
+          if (!commentsByPost[fc.post_id]) commentsByPost[fc.post_id] = [];
+          commentsByPost[fc.post_id].push(fc);
+        }
+        const feedPosts = feedRows.map(p => mapFeedPostRow(p, commentsByPost[p.id] || [], likedSet, repostedSet));
+        const marketplaceOrders = db.prepare('SELECT * FROM marketplace_orders ORDER BY rowid DESC').all().map(mapMarketplaceOrderRow);
+
+        let messages = [];
+        if (currentAppUser) {
+          messages = db.prepare(`
+            SELECT * FROM feed_messages
+            WHERE recipient_account_id = ? OR LOWER(recipient_email) = LOWER(?) OR LOWER(recipient_name) = LOWER(?)
+            ORDER BY rowid DESC
+          `).all(currentAppUser.id, currentAppUser.email, currentAppUser.name);
+        }
+
+        const upvotedIds = db.prepare('SELECT project_id FROM project_upvotes WHERE voter_key = ?').all(actorKey).map(r => r.project_id);
+
+        return sendJson(res, 200, {
+          appUser: currentAppUser,
+          feedPosts,
+          marketplaceOrders,
+          organization: orgRow ? safeJsonParse(orgRow.data_json, {}) : {},
+          universities,
+          projects,
+          theses,
+          innovators,
+          news,
+          competitions,
+          upvotedIds,
+          messages
+        });
+      }
+
+      if (pathname === '/api/app/auth/register' && method === 'POST') {
+        const body = await readJsonBody(req);
+        const name = (body.name || '').trim();
+        const profession = (body.profession || '').trim();
+        const email = (body.email || '').trim().toLowerCase();
+        const phone = (body.phone || '').trim();
+        const about = (body.about || '').trim();
+        const password = (body.password || '').trim();
+
+        if (!name || !profession || !email || !password) {
+          return sendJson(res, 400, { error: 'Name, profession, email, and password are required.' });
+        }
+
+        const existingApp = db.prepare('SELECT id FROM app_accounts WHERE LOWER(email) = LOWER(?)').get(email);
+        if (existingApp) {
+          return sendJson(res, 409, { error: 'An app account with this email already exists. Please sign in instead.' });
+        }
+
+        const matchedAfostech = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+        const appId = `app-${Date.now()}`;
+
+        let avatarUrl = '';
+        if (body.avatarDataUrl && typeof body.avatarDataUrl === 'string' && body.avatarDataUrl.startsWith('data:image/')) {
+          const saved = saveBase64File(body.avatarDataUrl, 'avatars', `avatar_${appId}`, uploadsDir);
+          if (saved) avatarUrl = saved;
+        }
+
+        db.prepare(`
+          INSERT INTO app_accounts (
+            id, name, profession, email, phone, about, avatar_url, password_hash, linked_afostech_user_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          appId, name, profession, email, phone || null, about || null, avatarUrl || null,
+          hashPassword(password), matchedAfostech ? matchedAfostech.id : null
+        );
+
+        const appUser = mapAppAccountRow(db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appId), db);
+        const token = signToken({
+          type: 'app',
+          sub: appUser.id,
+          email: appUser.email,
+          exp: Date.now() + 14 * 24 * 60 * 60 * 1000
+        }, secret);
+
+        return sendJson(res, 201, { appUser, token }, {
+          'Set-Cookie': `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        });
+      }
+
+      if (pathname === '/api/app/auth/login' && method === 'POST') {
+        const body = await readJsonBody(req);
+        const email = (body.email || '').trim().toLowerCase();
+        const password = (body.password || '').trim();
+        if (!email || !password) {
+          return sendJson(res, 400, { error: 'Email and password are required.' });
+        }
+
+        let appRow = db.prepare('SELECT * FROM app_accounts WHERE LOWER(email) = LOWER(?)').get(email);
+        if (appRow) {
+          if (!verifyPassword(password, appRow.password_hash)) {
+            return sendJson(res, 401, { error: 'Invalid email or password.' });
+          }
+          // Ensure AFOSTECH link stays up to date
+          const matched = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+          if (matched && appRow.linked_afostech_user_id !== matched.id) {
+            db.prepare('UPDATE app_accounts SET linked_afostech_user_id = ? WHERE id = ?').run(matched.id, appRow.id);
+            appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appRow.id);
+          }
+        } else {
+          // Also allow signing directly with existing AFOSTECH credentials and auto-provisioning linked app profile
+          const afUser = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
+          if (!afUser || !verifyPassword(password, afUser.password_hash)) {
+            return sendJson(res, 401, { error: 'Invalid email or password.' });
+          }
+          const appId = `app-${Date.now()}`;
+          const prof = afUser.role === 'staff'
+            ? (afUser.staff_role || 'AFOSTECH Staff Official')
+            : (afUser.degree ? `${afUser.degree} Innovator` : 'Food Science Innovator');
+          db.prepare(`
+            INSERT INTO app_accounts (
+              id, name, profession, email, about, password_hash, linked_afostech_user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).run(appId, afUser.name, prof, afUser.email, afUser.bio || '', afUser.password_hash, afUser.id);
+          appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appId);
+        }
+
+        const appUser = mapAppAccountRow(appRow, db);
+        const token = signToken({
+          type: 'app',
+          sub: appUser.id,
+          email: appUser.email,
+          exp: Date.now() + 14 * 24 * 60 * 60 * 1000
+        }, secret);
+
+        return sendJson(res, 200, { appUser, token }, {
+          'Set-Cookie': `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        });
+      }
+
+      if (pathname === '/api/app/auth/logout' && method === 'POST') {
+        return sendJson(res, 200, { ok: true }, {
+          'Set-Cookie': 'afostech_app_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0'
+        });
+      }
+
+      if (pathname === '/api/app/auth/me' && method === 'GET') {
+        if (!currentAppUser) return sendJson(res, 401, { error: 'Not authenticated in app' });
+        return sendJson(res, 200, { appUser: currentAppUser });
+      }
+
+      if (pathname === '/api/app/profile' && method === 'PUT') {
+        if (!currentAppUser) return sendJson(res, 401, { error: 'Sign in required to update your profile.' });
+        const body = await readJsonBody(req);
+        const name = (body.name !== undefined ? body.name : currentAppUser.name).trim();
+        const profession = (body.profession !== undefined ? body.profession : currentAppUser.profession).trim();
+        const phone = (body.phone !== undefined ? body.phone : currentAppUser.phone).trim();
+        const about = (body.about !== undefined ? body.about : currentAppUser.about).trim();
+
+        if (!name || !profession) {
+          return sendJson(res, 400, { error: 'Name and profession are required.' });
+        }
+
+        let avatarUrl = currentAppUser.avatarUrl || '';
+        if (body.avatarDataUrl && typeof body.avatarDataUrl === 'string' && body.avatarDataUrl.startsWith('data:image/')) {
+          const saved = saveBase64File(body.avatarDataUrl, 'avatars', `avatar_${currentAppUser.id}_${Date.now()}`, uploadsDir);
+          if (saved) avatarUrl = saved;
+        }
+
+        const matchedAf = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(currentAppUser.email);
+        db.prepare(`
+          UPDATE app_accounts
+          SET name = ?, profession = ?, phone = ?, about = ?, avatar_url = ?, linked_afostech_user_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(name, profession, phone || null, about || null, avatarUrl || null, matchedAf ? matchedAf.id : null, currentAppUser.id);
+
+        // Keep author attribution updated cleanly on user's posts
+        db.prepare('UPDATE feed_posts SET author_name = ?, author_profession = ?, author_avatar_url = ? WHERE app_account_id = ?').run(
+          name, profession, avatarUrl || null, currentAppUser.id
+        );
+
+        const updated = mapAppAccountRow(db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(currentAppUser.id), db);
+        return sendJson(res, 200, { appUser: updated });
+      }
+
+      if (pathname === '/api/feed/posts' && method === 'POST') {
+        const poster = currentAppUser || (currentUser ? {
+          id: null,
+          name: currentUser.name,
+          profession: currentUser.role === 'staff' ? (currentUser.staffRole || 'AFOSTECH Official') : (currentUser.degree || 'Student Innovator'),
+          avatarUrl: '',
+          linkedAfostechUser: currentUser
+        } : null);
+
+        if (!poster) {
+          return sendJson(res, 401, { error: 'Please create an account or sign in to publish posts to the Food Science Feed.' });
+        }
+
+        const body = await readJsonBody(req);
+        const title = (body.title || '').trim();
+        const content = (body.content || '').trim();
+        const mediaType = ['text', 'image', 'video'].includes(body.mediaType) ? body.mediaType : 'text';
+        const mediaCaption = (body.mediaCaption || '').trim();
+        const topicTag = (body.topicTag || '#FoodChemistry').trim();
+        const videoDuration = (body.videoDuration || '01:45').trim();
+
+        if (!content && !mediaCaption) {
+          return sendJson(res, 400, { error: 'Post caption or text content is required.' });
+        }
+
+        const postId = `post-${Date.now()}`;
+        let mediaUrl = (body.mediaUrl || '').trim();
+        if (body.mediaDataUrl && typeof body.mediaDataUrl === 'string' && body.mediaDataUrl.startsWith('data:')) {
+          const subdir = mediaType === 'video' ? 'videos' : 'images';
+          const saved = saveBase64File(body.mediaDataUrl, subdir, `feed_${postId}`, uploadsDir);
+          if (saved) mediaUrl = saved;
+        }
+
+        const linked = poster.linkedAfostechUser || null;
+        const initials = poster.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'FS';
+
+        db.prepare(`
+          INSERT INTO feed_posts (
+            id, app_account_id, linked_user_id, author_name, author_profession,
+            author_avatar, author_avatar_url, author_color, university_id, university_name,
+            author_degree, author_admission_no, topic_tag, topic_label, title, content,
+            media_type, media_url, media_caption, video_duration, likes_count, reposts_count,
+            time_ago, date_posted
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, '#059669', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 'Just now', 'Nov 2026')
+        `).run(
+          postId, poster.id || null, linked ? linked.id : null,
+          poster.name, poster.profession, initials, poster.avatarUrl || null,
+          linked ? linked.universityId : null,
+          linked ? (linked.universityShortName || linked.universityName) : 'AFOSTECH Community',
+          linked ? linked.degree : poster.profession,
+          linked ? linked.admissionNo : null,
+          topicTag, topicTag.replace('#', ''),
+          title || null, content || mediaCaption,
+          mediaType, mediaUrl || null, mediaCaption || null,
+          mediaType === 'video' ? videoDuration : null
+        );
+
+        const createdRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        return sendJson(res, 201, { post: mapFeedPostRow(createdRow, [], new Set([postId]), new Set()) });
+      }
+
+      const feedLikeMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/like$/);
+      if (feedLikeMatch && method === 'POST') {
+        const postId = feedLikeMatch[1];
+        const postRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Post not found' });
+
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const existing = db.prepare('SELECT 1 FROM feed_post_likes WHERE post_id = ? AND actor_key = ?').get(postId, actorKey);
+        let isLiked;
+        let likesCount;
+        if (existing) {
+          db.prepare('DELETE FROM feed_post_likes WHERE post_id = ? AND actor_key = ?').run(postId, actorKey);
+          likesCount = Math.max(0, (postRow.likes_count || 0) - 1);
+          isLiked = false;
+        } else {
+          db.prepare('INSERT INTO feed_post_likes (post_id, actor_key) VALUES (?, ?)').run(postId, actorKey);
+          likesCount = (postRow.likes_count || 0) + 1;
+          isLiked = true;
+        }
+        db.prepare('UPDATE feed_posts SET likes_count = ? WHERE id = ?').run(likesCount, postId);
+        return sendJson(res, 200, { postId, likesCount, isLiked });
+      }
+
+      const feedRepostMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/repost$/);
+      if (feedRepostMatch && method === 'POST') {
+        const postId = feedRepostMatch[1];
+        const postRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Post not found' });
+
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const existing = db.prepare('SELECT 1 FROM feed_post_reposts WHERE post_id = ? AND actor_key = ?').get(postId, actorKey);
+        let repostsCount = postRow.reposts_count || 0;
+        if (!existing) {
+          db.prepare('INSERT INTO feed_post_reposts (post_id, actor_key) VALUES (?, ?)').run(postId, actorKey);
+          repostsCount += 1;
+          db.prepare('UPDATE feed_posts SET reposts_count = ? WHERE id = ?').run(repostsCount, postId);
+        }
+        return sendJson(res, 200, { postId, repostsCount, isReposted: true });
+      }
+
+      const feedCommMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/comments$/);
+      if (feedCommMatch && method === 'POST') {
+        const postId = feedCommMatch[1];
+        const postRow = db.prepare('SELECT id FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Post not found' });
+
+        const body = await readJsonBody(req);
+        const text = (body.text || '').trim();
+        if (!text) return sendJson(res, 400, { error: 'Comment text is required.' });
+
+        const authorName = (body.authorName || (currentAppUser && currentAppUser.name) || (currentUser && currentUser.name) || 'Community Reader').trim();
+        const authorProfession = (body.authorProfession || body.authorRole || (currentAppUser && currentAppUser.profession) || 'Food Science Enthusiast').trim();
+        const authorAvatar = authorName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'FS';
+        const authorAvatarUrl = (currentAppUser && currentAppUser.avatarUrl) || '';
+        const commentId = `fc-${Date.now()}`;
+
+        db.prepare(`
+          INSERT INTO feed_comments (id, post_id, author_name, author_profession, author_avatar, author_avatar_url, time_ago, text)
+          VALUES (?, ?, ?, ?, ?, ?, 'Just now', ?)
+        `).run(commentId, postId, authorName, authorProfession, authorAvatar, authorAvatarUrl || null, text);
+
+        return sendJson(res, 201, {
+          comment: {
+            id: commentId,
+            authorName,
+            authorRole: authorProfession,
+            authorProfession,
+            authorAvatar,
+            authorAvatarUrl,
+            timeAgo: 'Just now',
+            text
+          }
+        });
+      }
+
+      const feedMsgMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/messages$/);
+      if (feedMsgMatch && method === 'POST') {
+        const postId = feedMsgMatch[1];
+        const postRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Post not found' });
+
+        const body = await readJsonBody(req);
+        const senderName = (body.senderName || (currentAppUser && currentAppUser.name) || '').trim();
+        const senderContact = (body.senderContact || (currentAppUser && currentAppUser.email) || '').trim();
+        const messageText = (body.messageText || '').trim();
+        if (!senderName || !senderContact || !messageText) {
+          return sendJson(res, 400, { error: 'Your name, contact email/phone, and message are required.' });
+        }
+
+        let recipientEmail = '';
+        if (postRow.app_account_id) {
+          const acc = db.prepare('SELECT email FROM app_accounts WHERE id = ?').get(postRow.app_account_id);
+          if (acc) recipientEmail = acc.email;
+        }
+        const msgId = `msg-${Date.now()}`;
+        db.prepare(`
+          INSERT INTO feed_messages (
+            id, post_id, recipient_name, recipient_email, recipient_account_id,
+            sender_name, sender_contact, inquiry_type, message_text
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          msgId, postId, postRow.author_name, recipientEmail || null, postRow.app_account_id || null,
+          senderName, senderContact, (body.inquiryType || 'Scientific Inquiry').trim(), messageText
+        );
+
+        return sendJson(res, 201, {
+          message: db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId)
+        });
+      }
+
+      if (pathname === '/api/marketplace/orders' && method === 'GET') {
+        const orders = db.prepare('SELECT * FROM marketplace_orders ORDER BY rowid DESC').all().map(mapMarketplaceOrderRow);
+        return sendJson(res, 200, { orders });
+      }
+
+      if (pathname === '/api/marketplace/orders' && method === 'POST') {
+        const body = await readJsonBody(req);
+        const projectId = (body.projectId || '').trim();
+        const buyerName = (body.buyerName || (currentAppUser && currentAppUser.name) || '').trim();
+        const buyerCountry = (body.buyerCountry || 'Kenya').trim();
+        const buyerCity = (body.buyerCity || '').trim();
+        const tier = body.tier === 'wholesale' ? 'wholesale' : 'single';
+        const quantity = Math.max(1, Number(body.quantity) || 1);
+
+        const projectRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        if (!projectRow) return sendJson(res, 404, { error: 'Product innovation not found.' });
+        if (!buyerName || !buyerCity) {
+          return sendJson(res, 400, { error: 'Recipient name and delivery city are required.' });
+        }
+
+        const comm = safeJsonParse(projectRow.commercial_json, null) || defaultCommercialForProject(projectRow);
+        const isCrossBorder = buyerCountry.toLowerCase() !== (comm.originCountry || 'Kenya').toLowerCase();
+        const effectiveTier = isCrossBorder ? 'wholesale' : tier;
+        const unitPrice = effectiveTier === 'wholesale' ? Number(comm.wholesalePriceUSD || 40) : Number(comm.singlePriceUSD || 2.5);
+        const unitName = effectiveTier === 'wholesale' ? (comm.wholesaleUnit || 'Wholesale Carton') : (comm.singleUnit || 'Sample Pack');
+        const subtotal = Number((unitPrice * quantity).toFixed(2));
+        const shipping = Number((isCrossBorder ? (18 + quantity * 6) : 3.5).toFixed(2));
+        const total = Number((subtotal + shipping).toFixed(2));
+        const studentPayout = Number((subtotal * 0.85).toFixed(2));
+        const afostechRevenue = Number((subtotal * 0.15).toFixed(2));
+
+        const orderId = `AFOST-ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+        const status = isCrossBorder ? 'Awaiting Cross-Border Export Dispatch' : 'Domestic Dispatch Scheduled (24h)';
+
+        db.prepare(`
+          INSERT INTO marketplace_orders (
+            id, project_id, product_name, buyer_name, buyer_email, buyer_city, buyer_country,
+            tier, quantity, unit_name, subtotal_usd, shipping_usd, total_usd,
+            student_payout_usd, afostech_revenue_usd, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          orderId, projectId, projectRow.title, buyerName,
+          (body.buyerEmail || (currentAppUser && currentAppUser.email) || '').trim(),
+          buyerCity, buyerCountry, effectiveTier, quantity, unitName,
+          subtotal, shipping, total, studentPayout, afostechRevenue, status
+        );
+
+        const order = mapMarketplaceOrderRow(db.prepare('SELECT * FROM marketplace_orders WHERE id = ?').get(orderId));
+        return sendJson(res, 201, { order });
+      }
+
+      const cycleOrderMatch = pathname.match(/^\/api\/marketplace\/orders\/([^/]+)\/cycle$/);
+      if (cycleOrderMatch && method === 'POST') {
+        const orderId = cycleOrderMatch[1];
+        const row = db.prepare('SELECT * FROM marketplace_orders WHERE id = ?').get(orderId);
+        if (!row) return sendJson(res, 404, { error: 'Order not found' });
+        const statuses = [
+          'Domestic Dispatch Scheduled (24h)',
+          'Awaiting Cross-Border Export Dispatch',
+          'Dispatched via Cold-Chain Logistics',
+          'Delivered to Buyer'
+        ];
+        const idx = statuses.indexOf(row.status);
+        const nextStatus = statuses[(idx + 1) % statuses.length];
+        db.prepare('UPDATE marketplace_orders SET status = ? WHERE id = ?').run(nextStatus, orderId);
+        return sendJson(res, 200, { order: mapMarketplaceOrderRow(db.prepare('SELECT * FROM marketplace_orders WHERE id = ?').get(orderId)) });
+      }
+
+      // ------------------------------------------------------------------
       // STAFF-ONLY PROTECTED ROUTES (Role Check: role === 'staff')
       // ------------------------------------------------------------------
       if (pathname.startsWith('/api/staff/')) {
@@ -985,13 +1629,32 @@ function createAppServer(options = {}) {
       // ------------------------------------------------------------------
       // STATIC FILE ROUTES
       // ------------------------------------------------------------------
+      if (pathname.startsWith('/uploads/')) {
+        const relUpload = pathname.slice('/uploads/'.length);
+        if (serveStaticFile(res, uploadsDir, relUpload)) return;
+      }
+
       if (pathname.startsWith('/foodfeed-app/')) {
         if (fs.existsSync(FOODFEED_SIBLING_DIR)) {
           const rel = pathname.slice('/foodfeed-app/'.length) || 'index.html';
           if (serveStaticFile(res, FOODFEED_SIBLING_DIR, rel)) return;
+          if (serveStaticFile(res, ROOT_DIR, rel)) return;
         }
         res.writeHead(404);
         res.end('AFOSTECH-FoodFeed folder not found');
+        return;
+      }
+
+      if (options.primaryApp === 'foodfeed' && fs.existsSync(FOODFEED_SIBLING_DIR)) {
+        if (pathname.startsWith('/portal/')) {
+          const relPortal = pathname.slice('/portal/'.length) || 'index.html';
+          if (serveStaticFile(res, ROOT_DIR, relPortal)) return;
+        }
+        const relFeed = pathname === '/' ? 'index.html' : pathname.slice(1);
+        if (serveStaticFile(res, FOODFEED_SIBLING_DIR, relFeed)) return;
+        if (serveStaticFile(res, ROOT_DIR, relFeed)) return;
+        res.writeHead(404);
+        res.end('Not Found');
         return;
       }
 

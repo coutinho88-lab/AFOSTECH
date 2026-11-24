@@ -11,10 +11,106 @@ function loadInitialDataFromClientFile() {
   return sandbox.AFOSTECH_DATA;
 }
 
+function loadSiblingModuleData(relFile, varName) {
+  const candidate = path.resolve(__dirname, '..', '..', 'AFOSTECH-FoodFeed', 'js', relFile);
+  if (!fs.existsSync(candidate)) return null;
+  try {
+    const raw = fs.readFileSync(candidate, 'utf8');
+    const sandbox = {};
+    vm.runInNewContext(raw.replace(`const ${varName} =`, `var ${varName} =`), sandbox);
+    return sandbox[varName];
+  } catch (e) {
+    return null;
+  }
+}
+
+function seedFeedAndMarketplace(db) {
+  const feedData = loadSiblingModuleData('feed-data.js', 'FEED_DATA');
+  const mktData = loadSiblingModuleData('marketplace-data.js', 'MARKETPLACE_DATA');
+
+  db.exec('BEGIN');
+  try {
+    // Backfill commercial_json on existing projects from marketplace seed if missing
+    if (mktData && Array.isArray(mktData.products)) {
+      const updateComm = db.prepare('UPDATE projects SET commercial_json = ? WHERE id = ? AND (commercial_json IS NULL OR commercial_json = \'\')');
+      for (const mp of mktData.products) {
+        if (mp && mp.id && mp.commercial) {
+          updateComm.run(JSON.stringify(mp.commercial), mp.id);
+        }
+      }
+    }
+
+    // Seed feed_posts & feed_comments if empty
+    const feedCount = db.prepare('SELECT COUNT(*) AS cnt FROM feed_posts').get().cnt;
+    if (feedCount === 0 && feedData && Array.isArray(feedData.feedPosts)) {
+      const insertPost = db.prepare(`
+        INSERT INTO feed_posts (
+          id, author_name, author_profession, author_avatar, author_color,
+          university_id, university_name, author_degree, author_admission_no,
+          topic_tag, topic_label, title, content, media_type, media_url,
+          media_caption, video_duration, likes_count, reposts_count, time_ago, date_posted
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const insertComment = db.prepare(`
+        INSERT INTO feed_comments (
+          id, post_id, author_name, author_profession, author_avatar, time_ago, text
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const p of feedData.feedPosts) {
+        insertPost.run(
+          p.id, p.authorName, p.authorRole || p.authorDegree || 'Food Science Researcher',
+          p.authorAvatar || null, p.authorColor || '#059669',
+          p.universityId || null, p.universityName || null, p.authorDegree || null,
+          p.authorAdmissionNo || null, p.topicTag || '#FoodChemistry',
+          p.topicLabel || 'Food Science', p.title || null, p.content || '',
+          p.mediaType || 'text', p.mediaUrl || null, p.mediaCaption || null,
+          p.videoDuration || null, p.likesCount || 0, p.repostsCount || 0,
+          p.timeAgo || 'Recent', p.datePosted || 'Nov 2026'
+        );
+        for (const c of p.comments || []) {
+          insertComment.run(
+            c.id || `fc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            p.id, c.authorName, c.authorRole || 'Community Reader',
+            c.authorAvatar || 'FS', c.timeAgo || 'Recent', c.text || ''
+          );
+        }
+      }
+    }
+
+    // Seed marketplace_orders if empty
+    const orderCount = db.prepare('SELECT COUNT(*) AS cnt FROM marketplace_orders').get().cnt;
+    if (orderCount === 0 && mktData && Array.isArray(mktData.productOrders)) {
+      const insertOrder = db.prepare(`
+        INSERT INTO marketplace_orders (
+          id, project_id, product_name, buyer_name, buyer_email, buyer_city,
+          buyer_country, tier, quantity, unit_name, subtotal_usd, shipping_usd,
+          total_usd, student_payout_usd, afostech_revenue_usd, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const o of mktData.productOrders) {
+        insertOrder.run(
+          o.id, o.projectId || 'proj-1', o.productName, o.buyerName, o.buyerEmail || null,
+          o.buyerCity || '', o.buyerCountry || 'Kenya', o.tier || 'single',
+          o.quantity || 1, o.unitName || 'Unit', o.subtotalUSD || 0, o.shippingUSD || 0,
+          o.totalUSD || 0, o.studentPayoutUSD || 0, o.afostechRevenueUSD || 0,
+          o.status || 'Confirmed'
+        );
+      }
+    }
+
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 function seedDatabase(db) {
   const orgCount = db.prepare('SELECT COUNT(*) AS cnt FROM organization').get().cnt;
   if (orgCount > 0) {
-    return false; // Already seeded
+    seedFeedAndMarketplace(db);
+    return false; // Core already seeded; ensured Feed/Marketplace data present
   }
 
   const data = loadInitialDataFromClientFile();
@@ -236,6 +332,7 @@ function seedDatabase(db) {
     }
 
     db.exec('COMMIT');
+    seedFeedAndMarketplace(db);
     return true;
   } catch (err) {
     db.exec('ROLLBACK');

@@ -219,3 +219,139 @@ test('Public interactions, confidential partnership file uploads, registration &
   assert.equal(activatedLogin.status, 200);
   assert.equal(activatedLogin.json.user.role, 'innovator');
 });
+
+test('Phone App supports public account creation, profile editing, feed media+captions, marketplace orders & AFOSTECH innovator linking', async () => {
+  // 1. App bootstrap includes feed posts, marketplace orders & AFOSTECH innovations
+  const boot = await api('/api/app/bootstrap');
+  assert.equal(boot.status, 200);
+  assert.ok(Array.isArray(boot.json.feedPosts) && boot.json.feedPosts.length >= 1);
+  assert.ok(Array.isArray(boot.json.projects) && boot.json.projects.length >= 1);
+  assert.ok(boot.json.projects[0].commercial);
+
+  // 2. Anyone creates an account (Phone & About left optional at signup, updated later in Profile)
+  const regGuest = await api('/api/app/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Dr. Chef Maya Patel',
+      profession: 'Culinary Biochemist',
+      email: 'maya.patel@kitchenlab.org',
+      password: 'chefpass123'
+    })
+  });
+  assert.equal(regGuest.status, 201);
+  assert.equal(regGuest.json.appUser.profession, 'Culinary Biochemist');
+  assert.equal(regGuest.json.appUser.isAFOSTECHLinked, false);
+  assert.equal(regGuest.json.appUser.canSubmitAFOSTECH, false);
+  const guestToken = regGuest.json.token;
+
+  // Non-linked app user cannot submit AFOSTECH innovation
+  const blockedSubmit = await api('/api/projects', {
+    method: 'POST',
+    token: guestToken,
+    body: JSON.stringify({ title: 'Blocked Item', tagline: 'Should fail', category: 'functional' })
+  });
+  assert.equal(blockedSubmit.status, 401);
+
+  // Update Profile later with About, Phone & Avatar photo
+  const tinyPngB64 = 'data:image/png;base64,' + Buffer.from('fake-png-avatar').toString('base64');
+  const profUpd = await api('/api/app/profile', {
+    method: 'PUT',
+    token: guestToken,
+    body: JSON.stringify({
+      phone: '+254711223344',
+      about: 'Researching plant hydrocolloids and fermentation flavor chemistry.',
+      avatarDataUrl: tinyPngB64
+    })
+  });
+  assert.equal(profUpd.status, 200);
+  assert.equal(profUpd.json.appUser.phone, '+254711223344');
+  assert.ok(profUpd.json.appUser.about.includes('hydrocolloids'));
+  assert.ok(profUpd.json.appUser.avatarUrl.startsWith('/uploads/avatars/'));
+
+  // Publish video post with captioning + interact (like, repost, comment, DM)
+  const tinyMp4B64 = 'data:video/mp4;base64,' + Buffer.from('fake-mp4-stream').toString('base64');
+  const postRes = await api('/api/feed/posts', {
+    method: 'POST',
+    token: guestToken,
+    body: JSON.stringify({
+      mediaType: 'video',
+      title: 'Pectin Gelation Experiment',
+      mediaCaption: 'Boiling citrus peel extract at pH 3.2 for natural jam setting',
+      content: 'Demonstrating thermal gelation dynamics for clean-label preserves. #FoodChemistry',
+      topicTag: '#FoodChemistry',
+      mediaDataUrl: tinyMp4B64
+    })
+  });
+  assert.equal(postRes.status, 201);
+  assert.equal(postRes.json.post.authorProfession, 'Culinary Biochemist');
+  assert.ok(postRes.json.post.mediaUrl.startsWith('/uploads/videos/'));
+  const createdPostId = postRes.json.post.id;
+
+  const commRes = await api(`/api/feed/posts/${createdPostId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ authorName: 'Alex Kim', authorProfession: 'Food Technologist', text: 'Great viscosity profile!' })
+  });
+  assert.equal(commRes.status, 201);
+  assert.equal(commRes.json.comment.authorProfession, 'Food Technologist');
+
+  // 3. Innovator signs up in App using the same email used in AFOSTECH -> auto-links account!
+  const regInn = await api('/api/app/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Faith Wanjiru',
+      profession: 'B.Sc. Food Science Innovator',
+      email: 'f.wanjiru@students.jkuat.ac.ke',
+      phone: '+254700998877',
+      password: 'apppassword99'
+    })
+  });
+  assert.equal(regInn.status, 201);
+  assert.equal(regInn.json.appUser.isAFOSTECHLinked, true);
+  assert.equal(regInn.json.appUser.canSubmitAFOSTECH, true);
+  const linkedToken = regInn.json.token;
+
+  // Linked innovator submits Innovation & Thesis directly from App -> visible in AFOSTECH & Marketplace!
+  const appProjRes = await api('/api/projects', {
+    method: 'POST',
+    token: linkedToken,
+    body: JSON.stringify({
+      title: 'App-Submitted Spirulina Crunch',
+      tagline: 'Crisp fortified snack launched directly from mobile app',
+      category: 'biofortified',
+      universityId: 'jkuat',
+      summary: 'High-protein snack bar extruded at 130C.'
+    })
+  });
+  assert.equal(appProjRes.status, 201);
+  assert.ok(appProjRes.json.project.commercial);
+
+  const appThRes = await api('/api/theses', {
+    method: 'POST',
+    token: linkedToken,
+    body: JSON.stringify({
+      title: 'Microalgae Bioavailability in Extruded Matrices',
+      tagline: 'JKUAT 2026 Pilot Study',
+      category: 'biofortified',
+      universityId: 'jkuat',
+      abstract: 'In vitro digestion study confirming 88% iron bioaccessibility.'
+    })
+  });
+  assert.equal(appThRes.status, 201);
+
+  // Place Marketplace Try Product order for the newly submitted innovation
+  const orderRes = await api('/api/marketplace/orders', {
+    method: 'POST',
+    token: linkedToken,
+    body: JSON.stringify({
+      projectId: appProjRes.json.project.id,
+      buyerName: 'Chef Maya Patel',
+      buyerEmail: 'maya.patel@kitchenlab.org',
+      buyerCountry: 'Kenya',
+      buyerCity: 'Nairobi',
+      tier: 'single',
+      quantity: 2
+    })
+  });
+  assert.equal(orderRes.status, 201);
+  assert.equal(orderRes.json.order.productName, 'App-Submitted Spirulina Crunch');
+});

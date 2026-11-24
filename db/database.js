@@ -7,7 +7,7 @@ const DB_DIR = path.join(__dirname);
 const DB_PATH = path.join(DB_DIR, 'afostech.db');
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 
-['images', 'letters', 'theses', 'dissertations'].forEach(sub => {
+['images', 'letters', 'theses', 'dissertations', 'avatars', 'videos'].forEach(sub => {
   fs.mkdirSync(path.join(UPLOADS_DIR, sub), { recursive: true });
 });
 
@@ -249,7 +249,117 @@ function createDatabase(dbPath = DB_PATH) {
       title TEXT,
       quote TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS app_accounts (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      profession TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      phone TEXT,
+      about TEXT,
+      avatar_url TEXT,
+      password_hash TEXT NOT NULL,
+      linked_afostech_user_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_posts (
+      id TEXT PRIMARY KEY,
+      app_account_id TEXT,
+      linked_user_id TEXT,
+      author_name TEXT NOT NULL,
+      author_profession TEXT,
+      author_avatar TEXT,
+      author_avatar_url TEXT,
+      author_color TEXT DEFAULT '#059669',
+      university_id TEXT,
+      university_name TEXT,
+      author_degree TEXT,
+      author_admission_no TEXT,
+      topic_tag TEXT DEFAULT '#FoodChemistry',
+      topic_label TEXT,
+      title TEXT,
+      content TEXT NOT NULL,
+      media_type TEXT DEFAULT 'text',
+      media_url TEXT,
+      media_caption TEXT,
+      video_duration TEXT,
+      likes_count INTEGER DEFAULT 0,
+      reposts_count INTEGER DEFAULT 0,
+      time_ago TEXT DEFAULT 'Just now',
+      date_posted TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_post_likes (
+      post_id TEXT NOT NULL,
+      actor_key TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (post_id, actor_key),
+      FOREIGN KEY (post_id) REFERENCES feed_posts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_post_reposts (
+      post_id TEXT NOT NULL,
+      actor_key TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (post_id, actor_key),
+      FOREIGN KEY (post_id) REFERENCES feed_posts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_comments (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_profession TEXT,
+      author_avatar TEXT,
+      author_avatar_url TEXT,
+      time_ago TEXT DEFAULT 'Just now',
+      text TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (post_id) REFERENCES feed_posts(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS feed_messages (
+      id TEXT PRIMARY KEY,
+      post_id TEXT,
+      recipient_name TEXT NOT NULL,
+      recipient_email TEXT,
+      recipient_account_id TEXT,
+      sender_name TEXT NOT NULL,
+      sender_contact TEXT NOT NULL,
+      inquiry_type TEXT,
+      message_text TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS marketplace_orders (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      product_name TEXT NOT NULL,
+      buyer_name TEXT NOT NULL,
+      buyer_email TEXT,
+      buyer_city TEXT,
+      buyer_country TEXT,
+      tier TEXT DEFAULT 'single',
+      quantity INTEGER DEFAULT 1,
+      unit_name TEXT,
+      subtotal_usd REAL DEFAULT 0,
+      shipping_usd REAL DEFAULT 0,
+      total_usd REAL DEFAULT 0,
+      student_payout_usd REAL DEFAULT 0,
+      afostech_revenue_usd REAL DEFAULT 0,
+      status TEXT DEFAULT 'Order Confirmed',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  try {
+    db.exec('ALTER TABLE projects ADD COLUMN commercial_json TEXT;');
+  } catch (e) {
+    // Column already exists on initialized DBs
+  }
 
   return db;
 }
