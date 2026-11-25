@@ -3780,4 +3780,49 @@ body.mobile-drawer-active {
     padding: 9px 6px;
     bottom: 16px;
   }
+
+  .nav-app-shortcut-btn {
+    padding: 6px 9px;
+    font-size: 0.74rem;
+  }
+}
+
+/* Easy Web Shortcut to Food Feed & Marketplace App */
+@media (max-width: 520px) {
+  .nav-app-shortcut-btn {
+    display: none;
+  }
+}
+
+.btn-utility.app-shortcut {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.btn-utility.app-shortcut:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+}
+
+.nav-app-shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0f9ff;
+  border: 1.5px solid #7dd3fc;
+  color: #0369a1;
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  font-weight: 800;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.nav-app-shortcut-btn:hover {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  transform: translateY(-1px);
 }

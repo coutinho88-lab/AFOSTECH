@@ -30,6 +30,11 @@
       </div>
 
       <div class="utility-right">
+        <!-- Easy Shortcut to Phone App (Food Feed + Marketplace) -->
+        <button type="button" class="btn-utility app-shortcut" onclick="openFoodFeedApp('feed')" title="Open AFOSTECH Food Feed &amp; Marketplace App">
+          📱 Open App
+        </button>
+
         <!-- Request Partnership Button -->
         <button class="btn-utility partner js-open-partnership" title="Universities can apply to affiliate their department">
           🏛️ Request Partnership
@@ -100,8 +105,11 @@
         </ul>
       </nav>
 
-      <!-- Submit Innovation Action Button (Restricted to Innovators) + Mobile Sections Trigger -->
+      <!-- Submit Innovation Action Button + App Shortcut + Mobile Sections Trigger -->
       <div class="nav-action-wrapper">
+        <button type="button" class="nav-app-shortcut-btn" onclick="openFoodFeedApp('feed')" title="Launch AFOSTECH Food Feed &amp; Marketplace App">
+          <span>📱</span> App
+        </button>
         <button class="submit-btn-nav js-open-submit" id="navSubmitBtn" title="Innovator member access required">
           <span>🔒</span> Submit
         </button>
@@ -175,6 +183,9 @@
 
       <div class="mobile-drawer-section-label" style="margin-top: 18px;">Quick Actions</div>
       <div class="mobile-drawer-actions">
+        <button type="button" class="mobile-drawer-action-btn" style="border-color: #0284c7; color: #0369a1; background: #f0f9ff;" onclick="closeMobileNavDrawer(); openFoodFeedApp('feed');">
+          📱 Open Food Feed App →
+        </button>
         <button type="button" class="mobile-drawer-action-btn primary" id="mobileDrawerSubmitBtn">
           🔒 Submit Innovation
         </button>
@@ -1607,6 +1618,7 @@ div>
             <li><a href="#" onclick="switchTab('innovators'); return false;">Board of Honour</a></li>
             <li><a href="#" onclick="switchTab('news'); return false;">News &amp; Events</a></li>
             <li><a href="#" onclick="switchTab('about'); return false;">About AFOSTECH</a></li>
+            <li><a href="#" onclick="openFoodFeedApp('feed'); return false;">📱 Food Feed &amp; Marketplace App</a></li>
           </ul>
         </div>
 
