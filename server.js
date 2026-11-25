@@ -513,38 +513,90 @@ function createAppServer(options = {}) {
   const uploadsDir = options.uploadsDir || UPLOADS_DIR;
   const secret = options.sessionSecret || getSessionSecret();
 
+  function ensureAppAccountForAfostechUser(afUserRow) {
+    if (!afUserRow) return null;
+    if (afUserRow.role === 'innovator' && afUserRow.membership_status === 'Pending Institutional Confirmation') {
+      return null;
+    }
+    let appRow = db.prepare('SELECT * FROM app_accounts WHERE linked_afostech_user_id = ? OR LOWER(email) = LOWER(?)').get(
+      afUserRow.id, afUserRow.email
+    );
+    if (!appRow) {
+      const appId = `app-${Date.now()}-${Math.floor(100 + Math.random() * 899)}`;
+      const prof = afUserRow.role === 'staff'
+        ? (afUserRow.staff_role || 'AFOSTECH Staff Official')
+        : (afUserRow.degree ? `${afUserRow.degree} Innovator` : 'Food Science Innovator');
+      db.prepare(`
+        INSERT INTO app_accounts (
+          id, name, profession, email, about, password_hash, linked_afostech_user_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(appId, afUserRow.name, prof, afUserRow.email, afUserRow.bio || '', afUserRow.password_hash, afUserRow.id);
+      appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appId);
+    } else if (appRow.linked_afostech_user_id !== afUserRow.id) {
+      db.prepare('UPDATE app_accounts SET linked_afostech_user_id = ? WHERE id = ?').run(afUserRow.id, appRow.id);
+      appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appRow.id);
+    }
+    return mapAppAccountRow(appRow, db);
+  }
+
   function getSessionUser(req) {
     const cookies = parseCookies(req);
     let token = cookies.afostech_session;
+    let appToken = cookies.afostech_app_session;
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Bearer ')) {
       const bearer = authHeader.slice(7).trim();
       const decoded = verifyToken(bearer, secret);
       if (decoded && decoded.type !== 'app') {
         token = bearer;
+      } else if (decoded && decoded.type === 'app') {
+        appToken = bearer;
       }
     }
     const payload = verifyToken(token, secret);
-    if (!payload || !payload.sub || payload.type === 'app') return null;
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.sub);
-    return row ? mapUserRow(row, true) : null;
+    if (payload && payload.sub && payload.type !== 'app') {
+      const row = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.sub);
+      if (row) return mapUserRow(row, true);
+    }
+    // Unified SSO: if signed into the Phone App with a verified linked AFOSTECH account, resolve Web user seamlessly
+    const appPayload = verifyToken(appToken, secret);
+    if (appPayload && appPayload.sub && appPayload.type === 'app') {
+      const appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appPayload.sub);
+      const appMapped = appRow ? mapAppAccountRow(appRow, db) : null;
+      if (appMapped && appMapped.canSubmitAFOSTECH && appMapped.linkedAfostechUserId) {
+        const linkedRow = db.prepare('SELECT * FROM users WHERE id = ?').get(appMapped.linkedAfostechUserId);
+        if (linkedRow) return mapUserRow(linkedRow, true);
+      }
+    }
+    return null;
   }
 
   function getSessionAppAccount(req) {
     const cookies = parseCookies(req);
     let token = cookies.afostech_app_session;
+    let webToken = cookies.afostech_session;
     const authHeader = req.headers.authorization || '';
     if (authHeader.startsWith('Bearer ')) {
       const bearer = authHeader.slice(7).trim();
       const decoded = verifyToken(bearer, secret);
       if (decoded && decoded.type === 'app') {
         token = bearer;
+      } else if (decoded && decoded.type !== 'app') {
+        webToken = bearer;
       }
     }
     const payload = verifyToken(token, secret);
-    if (!payload || !payload.sub || payload.type !== 'app') return null;
-    const row = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(payload.sub);
-    return row ? mapAppAccountRow(row, db) : null;
+    if (payload && payload.sub && payload.type === 'app') {
+      const row = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(payload.sub);
+      if (row) return mapAppAccountRow(row, db);
+    }
+    // Unified SSO: if user is logged in on AFOSTECH website, reuse/provision their profile automatically in the App
+    const webPayload = verifyToken(webToken, secret);
+    if (webPayload && webPayload.sub && webPayload.type !== 'app') {
+      const afRow = db.prepare('SELECT * FROM users WHERE id = ?').get(webPayload.sub);
+      if (afRow) return ensureAppAccountForAfostechUser(afRow);
+    }
+    return null;
   }
 
   function getEffectiveSubmitter(req, currentUser, appUser) {
@@ -668,8 +720,24 @@ function createAppServer(options = {}) {
           exp: Date.now() + 7 * 24 * 60 * 60 * 1000
         }, secret);
 
-        return sendJson(res, 200, { user, token }, {
-          'Set-Cookie': `afostech_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`
+        // Also issue Phone App SSO session cookie so transitioning to the App requires zero extra sign-in
+        const appAccount = ensureAppAccountForAfostechUser(userRow);
+        const cookiesOut = [
+          `afostech_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`
+        ];
+        let appToken = null;
+        if (appAccount) {
+          appToken = signToken({
+            type: 'app',
+            sub: appAccount.id,
+            email: appAccount.email,
+            exp: Date.now() + 14 * 24 * 60 * 60 * 1000
+          }, secret);
+          cookiesOut.push(`afostech_app_session=${encodeURIComponent(appToken)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`);
+        }
+
+        return sendJson(res, 200, { user, token, appUser: appAccount, appToken }, {
+          'Set-Cookie': cookiesOut
         });
       }
 
@@ -743,7 +811,10 @@ function createAppServer(options = {}) {
 
       if (pathname === '/api/auth/logout' && method === 'POST') {
         return sendJson(res, 200, { ok: true }, {
-          'Set-Cookie': 'afostech_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0'
+          'Set-Cookie': [
+            'afostech_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0',
+            'afostech_app_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0'
+          ]
         });
       }
 
@@ -1085,27 +1156,67 @@ function createAppServer(options = {}) {
       // PHONE APP (AFOSTECH-FoodFeed): ACCOUNT AUTH, PROFILE, FEED & MARKETPLACE
       // ------------------------------------------------------------------
       if (pathname === '/api/app/bootstrap' && method === 'GET') {
+        const isMember = Boolean(
+          (currentUser && (currentUser.role === 'staff' || currentUser.membershipStatus !== 'Pending Institutional Confirmation')) ||
+          (currentAppUser && currentAppUser.canSubmitAFOSTECH)
+        );
         const orgRow = db.prepare('SELECT data_json FROM organization WHERE id = ?').get('afostech');
-        const universities = db.prepare('SELECT * FROM universities').all().map(mapUniversityRow);
-        const projects = db.prepare('SELECT * FROM projects ORDER BY featured DESC, upvotes DESC').all().map(mapProjectRow);
-        const thesesRows = db.prepare('SELECT * FROM theses ORDER BY rowid DESC').all();
-        const allThesisComments = db.prepare('SELECT * FROM thesis_comments ORDER BY rowid ASC').all();
-        const thesisCommentsById = {};
-        for (const c of allThesisComments) {
-          if (!thesisCommentsById[c.thesis_id]) thesisCommentsById[c.thesis_id] = [];
-          thesisCommentsById[c.thesis_id].push(c);
+        const allUniversities = db.prepare('SELECT * FROM universities').all().map(mapUniversityRow);
+        const allProjects = db.prepare('SELECT * FROM projects ORDER BY featured DESC, upvotes DESC').all().map(mapProjectRow);
+        const thesesCount = db.prepare('SELECT COUNT(*) AS c FROM theses').get().c;
+        const scientistsCount = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'innovator' AND membership_status != 'Pending Institutional Confirmation'").get().c;
+
+        const achievements = {
+          universitiesCount: allUniversities.length,
+          scientistsCount,
+          prototypesCount: allProjects.length,
+          patentsCount: allProjects.filter(p => p.award || p.featured).length + 4
+        };
+
+        let universities = [];
+        let projects = [];
+        let theses = [];
+        let innovators = [];
+        let news = [];
+        let competitions = [];
+
+        if (isMember) {
+          universities = allUniversities;
+          projects = allProjects;
+          const thesesRows = db.prepare('SELECT * FROM theses ORDER BY rowid DESC').all();
+          const allThesisComments = db.prepare('SELECT * FROM thesis_comments ORDER BY rowid ASC').all();
+          const thesisCommentsById = {};
+          for (const c of allThesisComments) {
+            if (!thesisCommentsById[c.thesis_id]) thesisCommentsById[c.thesis_id] = [];
+            thesisCommentsById[c.thesis_id].push(c);
+          }
+          theses = thesesRows.map(t => mapThesisRow(t, thesisCommentsById[t.id] || []));
+          innovators = db.prepare("SELECT * FROM users WHERE role = 'innovator' AND membership_status != 'Pending Institutional Confirmation'").all().map(r => mapUserRow(r, false));
+          news = db.prepare('SELECT * FROM news').all().map(n => ({
+            id: n.id, badge: n.badge, badgeColor: n.badge_color, title: n.title,
+            date: n.date, summary: n.summary, actionLabel: n.action_label, link: n.link
+          }));
+          competitions = db.prepare('SELECT * FROM competitions').all().map(c => ({
+            id: c.id, title: c.title, theme: c.theme, grandPrize: c.grand_prize,
+            deadline: c.deadline, daysLeft: c.days_left, participants: c.participants,
+            stages: safeJsonParse(c.stages_json, [])
+          }));
+        } else {
+          // Public / Normal App Users: only expose Marketplace product data (no Theses, Honour Board, Leaderboard, or Innovator dossiers)
+          projects = allProjects.map(p => ({
+            id: p.id,
+            title: p.title,
+            tagline: p.tagline,
+            universityId: p.universityId,
+            universityName: p.universityName,
+            category: p.category,
+            categoryLabel: p.categoryLabel,
+            image: p.image,
+            sensoryScore: p.sensoryScore,
+            sustainabilityScore: p.sustainabilityScore,
+            commercial: p.commercial
+          }));
         }
-        const theses = thesesRows.map(t => mapThesisRow(t, thesisCommentsById[t.id] || []));
-        const innovators = db.prepare("SELECT * FROM users WHERE role = 'innovator' AND membership_status != 'Pending Institutional Confirmation'").all().map(r => mapUserRow(r, false));
-        const news = db.prepare('SELECT * FROM news').all().map(n => ({
-          id: n.id, badge: n.badge, badgeColor: n.badge_color, title: n.title,
-          date: n.date, summary: n.summary, actionLabel: n.action_label, link: n.link
-        }));
-        const competitions = db.prepare('SELECT * FROM competitions').all().map(c => ({
-          id: c.id, title: c.title, theme: c.theme, grandPrize: c.grand_prize,
-          deadline: c.deadline, daysLeft: c.days_left, participants: c.participants,
-          stages: safeJsonParse(c.stages_json, [])
-        }));
 
         const actorKey = getVoterKey(req, currentUser, currentAppUser);
         const likedSet = new Set(db.prepare('SELECT post_id FROM feed_post_likes WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
@@ -1130,10 +1241,14 @@ function createAppServer(options = {}) {
           `).all(currentAppUser.id, currentAppUser.email, currentAppUser.name);
         }
 
-        const upvotedIds = db.prepare('SELECT project_id FROM project_upvotes WHERE voter_key = ?').all(actorKey).map(r => r.project_id);
+        const upvotedIds = isMember
+          ? db.prepare('SELECT project_id FROM project_upvotes WHERE voter_key = ?').all(actorKey).map(r => r.project_id)
+          : [];
 
         return sendJson(res, 200, {
           appUser: currentAppUser,
+          canAccessMemberSections: isMember,
+          achievements,
           feedPosts,
           marketplaceOrders,
           organization: orgRow ? safeJsonParse(orgRow.data_json, {}) : {},
@@ -1192,8 +1307,22 @@ function createAppServer(options = {}) {
           exp: Date.now() + 14 * 24 * 60 * 60 * 1000
         }, secret);
 
-        return sendJson(res, 201, { appUser, token }, {
-          'Set-Cookie': `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        const regCookies = [
+          `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        ];
+        let afostechToken = null;
+        if (appUser.canSubmitAFOSTECH && appUser.linkedAfostechUser) {
+          afostechToken = signToken({
+            sub: appUser.linkedAfostechUser.id,
+            email: appUser.linkedAfostechUser.email,
+            role: appUser.linkedAfostechUser.role,
+            exp: Date.now() + 7 * 24 * 60 * 60 * 1000
+          }, secret);
+          regCookies.push(`afostech_session=${encodeURIComponent(afostechToken)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`);
+        }
+
+        return sendJson(res, 201, { appUser, token, afostechToken }, {
+          'Set-Cookie': regCookies
         });
       }
 
@@ -1210,28 +1339,22 @@ function createAppServer(options = {}) {
           if (!verifyPassword(password, appRow.password_hash)) {
             return sendJson(res, 401, { error: 'Invalid email or password.' });
           }
-          // Ensure AFOSTECH link stays up to date
           const matched = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
           if (matched && appRow.linked_afostech_user_id !== matched.id) {
             db.prepare('UPDATE app_accounts SET linked_afostech_user_id = ? WHERE id = ?').run(matched.id, appRow.id);
             appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appRow.id);
           }
         } else {
-          // Also allow signing directly with existing AFOSTECH credentials and auto-provisioning linked app profile
+          // Allow signing directly with AFOSTECH website credentials
           const afUser = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
           if (!afUser || !verifyPassword(password, afUser.password_hash)) {
             return sendJson(res, 401, { error: 'Invalid email or password.' });
           }
-          const appId = `app-${Date.now()}`;
-          const prof = afUser.role === 'staff'
-            ? (afUser.staff_role || 'AFOSTECH Staff Official')
-            : (afUser.degree ? `${afUser.degree} Innovator` : 'Food Science Innovator');
-          db.prepare(`
-            INSERT INTO app_accounts (
-              id, name, profession, email, about, password_hash, linked_afostech_user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-          `).run(appId, afUser.name, prof, afUser.email, afUser.bio || '', afUser.password_hash, afUser.id);
-          appRow = db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(appId);
+          if (afUser.role === 'innovator' && afUser.membership_status === 'Pending Institutional Confirmation') {
+            return sendJson(res, 403, { error: 'Enrollment Pending: Your AFOSTECH student account is awaiting university confirmation.' });
+          }
+          const provisioned = ensureAppAccountForAfostechUser(afUser);
+          appRow = provisioned ? db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(provisioned.id) : null;
         }
 
         const appUser = mapAppAccountRow(appRow, db);
@@ -1242,14 +1365,31 @@ function createAppServer(options = {}) {
           exp: Date.now() + 14 * 24 * 60 * 60 * 1000
         }, secret);
 
-        return sendJson(res, 200, { appUser, token }, {
-          'Set-Cookie': `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        const loginCookies = [
+          `afostech_app_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1209600`
+        ];
+        let afostechToken = null;
+        if (appUser.canSubmitAFOSTECH && appUser.linkedAfostechUser) {
+          afostechToken = signToken({
+            sub: appUser.linkedAfostechUser.id,
+            email: appUser.linkedAfostechUser.email,
+            role: appUser.linkedAfostechUser.role,
+            exp: Date.now() + 7 * 24 * 60 * 60 * 1000
+          }, secret);
+          loginCookies.push(`afostech_session=${encodeURIComponent(afostechToken)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`);
+        }
+
+        return sendJson(res, 200, { appUser, token, afostechToken }, {
+          'Set-Cookie': loginCookies
         });
       }
 
       if (pathname === '/api/app/auth/logout' && method === 'POST') {
         return sendJson(res, 200, { ok: true }, {
-          'Set-Cookie': 'afostech_app_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0'
+          'Set-Cookie': [
+            'afostech_app_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0',
+            'afostech_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0'
+          ]
         });
       }
 
@@ -1283,10 +1423,13 @@ function createAppServer(options = {}) {
           WHERE id = ?
         `).run(name, profession, phone || null, about || null, avatarUrl || null, matchedAf ? matchedAf.id : null, currentAppUser.id);
 
-        // Keep author attribution updated cleanly on user's posts
+        // Keep author attribution updated cleanly on user's posts and linked AFOSTECH web profile
         db.prepare('UPDATE feed_posts SET author_name = ?, author_profession = ?, author_avatar_url = ? WHERE app_account_id = ?').run(
           name, profession, avatarUrl || null, currentAppUser.id
         );
+        if (matchedAf) {
+          db.prepare('UPDATE users SET name = ?, bio = ? WHERE id = ?').run(name, about || '', matchedAf.id);
+        }
 
         const updated = mapAppAccountRow(db.prepare('SELECT * FROM app_accounts WHERE id = ?').get(currentAppUser.id), db);
         return sendJson(res, 200, { appUser: updated });

@@ -125,6 +125,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   await loadStoredData();
   renderApp();
+
+  // Deep-link handling from Food Feed App (?action=register or ?action=signin)
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get('action');
+  if ((action === 'register' || action === 'signin') && !AppState.currentUser) {
+    setTimeout(() => openAuthModal(action), 120);
+  }
 });
 
 // Load persistent data from SQLite backend (graceful fallback to static data on file://)
@@ -2657,6 +2664,9 @@ async function handleUnifiedSignIn(e) {
         body: JSON.stringify({ email, password })
       });
       AppState.authToken = res.token;
+      if (res.appToken) {
+        try { localStorage.setItem('afostech_app_token', res.appToken); } catch (e) {}
+      }
       applyAuthenticatedUser(res.user);
       saveState();
 
@@ -2741,6 +2751,7 @@ async function logoutCurrentUser() {
     try { await apiRequest('/api/auth/logout', { method: 'POST' }); } catch (e) {}
   }
   AppState.authToken = null;
+  try { localStorage.removeItem('afostech_app_token'); } catch (e) {}
   applyAuthenticatedUser(null);
   saveState();
   updateTopAuthStatus();

@@ -221,12 +221,30 @@ test('Public interactions, confidential partnership file uploads, registration &
 });
 
 test('Phone App supports public account creation, profile editing, feed media+captions, marketplace orders & AFOSTECH innovator linking', async () => {
-  // 1. App bootstrap includes feed posts, marketplace orders & AFOSTECH innovations
+  // 1. Public / Guest App bootstrap hides Theses & Honour Board while keeping Feed, Marketplace & Achievements
   const boot = await api('/api/app/bootstrap');
   assert.equal(boot.status, 200);
+  assert.equal(boot.json.canAccessMemberSections, false);
+  assert.equal(boot.json.theses.length, 0);
+  assert.equal(boot.json.innovators.length, 0);
+  assert.ok(boot.json.achievements && boot.json.achievements.universitiesCount >= 7);
   assert.ok(Array.isArray(boot.json.feedPosts) && boot.json.feedPosts.length >= 1);
   assert.ok(Array.isArray(boot.json.projects) && boot.json.projects.length >= 1);
   assert.ok(boot.json.projects[0].commercial);
+
+  // 1b. Website-logged-in AFOSTECH innovator (Faith Wanjiru) transitions directly into Phone App without creating another account!
+  const webFaithLogin = await api('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: 'f.wanjiru@students.jkuat.ac.ke', password: 'innovator2026' })
+  });
+  assert.equal(webFaithLogin.status, 200);
+  const ssoBoot = await api('/api/app/bootstrap', { token: webFaithLogin.json.token });
+  assert.equal(ssoBoot.status, 200);
+  assert.ok(ssoBoot.json.appUser);
+  assert.equal(ssoBoot.json.appUser.email, 'f.wanjiru@students.jkuat.ac.ke');
+  assert.equal(ssoBoot.json.canAccessMemberSections, true);
+  assert.ok(ssoBoot.json.theses.length >= 1);
+  assert.ok(ssoBoot.json.innovators.length >= 1);
 
   // 2. Anyone creates an account (Phone & About left optional at signup, updated later in Profile)
   const regGuest = await api('/api/app/auth/register', {
@@ -243,6 +261,13 @@ test('Phone App supports public account creation, profile editing, feed media+ca
   assert.equal(regGuest.json.appUser.isAFOSTECHLinked, false);
   assert.equal(regGuest.json.appUser.canSubmitAFOSTECH, false);
   const guestToken = regGuest.json.token;
+
+  // Normal non-AFOSTECH user stays restricted from Innovations/Theses member sections
+  const guestBoot = await api('/api/app/bootstrap', { token: guestToken });
+  assert.equal(guestBoot.status, 200);
+  assert.equal(guestBoot.json.canAccessMemberSections, false);
+  assert.equal(guestBoot.json.theses.length, 0);
+  assert.equal(guestBoot.json.innovators.length, 0);
 
   // Non-linked app user cannot submit AFOSTECH innovation
   const blockedSubmit = await api('/api/projects', {
@@ -294,14 +319,14 @@ test('Phone App supports public account creation, profile editing, feed media+ca
   assert.equal(commRes.status, 201);
   assert.equal(commRes.json.comment.authorProfession, 'Food Technologist');
 
-  // 3. Innovator signs up in App using the same email used in AFOSTECH -> auto-links account!
+  // 3. Innovator (Grace Nabirye) signs up in App using the same email used in AFOSTECH -> auto-links account!
   const regInn = await api('/api/app/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      name: 'Faith Wanjiru',
-      profession: 'B.Sc. Food Science Innovator',
-      email: 'f.wanjiru@students.jkuat.ac.ke',
-      phone: '+254700998877',
+      name: 'Grace Nabirye',
+      profession: 'Biopolymer Packaging Researcher',
+      email: 'g.nabirye@mak.ac.ug',
+      phone: '+256700998877',
       password: 'apppassword99'
     })
   });
@@ -309,6 +334,11 @@ test('Phone App supports public account creation, profile editing, feed media+ca
   assert.equal(regInn.json.appUser.isAFOSTECHLinked, true);
   assert.equal(regInn.json.appUser.canSubmitAFOSTECH, true);
   const linkedToken = regInn.json.token;
+
+  // Linked App account seamlessly accesses AFOSTECH Website user endpoint (/api/auth/me) without re-signing in!
+  const appToWebMe = await api('/api/auth/me', { token: linkedToken });
+  assert.equal(appToWebMe.status, 200);
+  assert.equal(appToWebMe.json.user.email, 'g.nabirye@mak.ac.ug');
 
   // Linked innovator submits Innovation & Thesis directly from App -> visible in AFOSTECH & Marketplace!
   const appProjRes = await api('/api/projects', {
