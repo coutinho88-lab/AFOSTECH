@@ -1690,12 +1690,108 @@ function createAppServer(options = {}) {
           const verificationDispatches = db.prepare('SELECT * FROM verification_dispatches ORDER BY created_at DESC').all().map(mapDispatchRow);
           const innovators = db.prepare("SELECT * FROM users WHERE role = 'innovator' ORDER BY created_at DESC").all().map(r => mapUserRow(r, true));
           const investorInquiries = db.prepare('SELECT * FROM investor_inquiries ORDER BY created_at DESC').all();
+          const universities = db.prepare('SELECT * FROM universities ORDER BY rank ASC').all().map(mapUniversityRow);
+          const projects = db.prepare('SELECT * FROM projects ORDER BY featured DESC, upvotes DESC').all().map(mapProjectRow);
+          const theses = db.prepare('SELECT * FROM theses ORDER BY rowid DESC').all().map(t => mapThesisRow(t, []));
+          const news = db.prepare('SELECT * FROM news ORDER BY rowid DESC').all().map(n => ({
+            id: n.id, badge: n.badge, badgeColor: n.badge_color, title: n.title,
+            date: n.date, summary: n.summary, actionLabel: n.action_label, link: n.link
+          }));
+          const feedPosts = db.prepare('SELECT * FROM feed_posts ORDER BY rowid DESC').all().map(p => mapFeedPostRow(p, [], new Set(), new Set()));
+          const marketplaceOrders = db.prepare('SELECT * FROM marketplace_orders ORDER BY rowid DESC').all().map(mapMarketplaceOrderRow);
+          const appAccounts = db.prepare('SELECT * FROM app_accounts ORDER BY created_at DESC').all().map(r => mapAppAccountRow(r, db));
+
+          const stats = {
+            totalUniversities: universities.length,
+            totalInnovators: innovators.length,
+            verifiedInnovators: innovators.filter(i => i.verified).length,
+            pendingVerifications: verificationDispatches.filter(d => !(d.status || '').toLowerCase().includes('verified')).length,
+            pendingPartnerships: partnershipRequests.filter(r => r.status !== 'Approved').length,
+            totalProjects: projects.length,
+            totalTheses: theses.length,
+            totalFeedPosts: feedPosts.length,
+            totalAppAccounts: appAccounts.length,
+            totalOrders: marketplaceOrders.length,
+            totalSalesUSD: Number(marketplaceOrders.reduce((s, o) => s + Number(o.totalUSD || 0), 0).toFixed(2)),
+            innovatorPayoutUSD: Number(marketplaceOrders.reduce((s, o) => s + Number(o.studentPayoutUSD || 0), 0).toFixed(2)),
+            consortiumRevenueUSD: Number(marketplaceOrders.reduce((s, o) => s + Number(o.afostechRevenueUSD || 0), 0).toFixed(2))
+          };
+
           return sendJson(res, 200, {
             partnershipRequests,
             verificationDispatches,
             innovators,
-            investorInquiries
+            investorInquiries,
+            universities,
+            projects,
+            theses,
+            news,
+            feedPosts,
+            marketplaceOrders,
+            appAccounts,
+            stats
           });
+        }
+
+        const staffProjFeatMatch = pathname.match(/^\/api\/staff\/projects\/([^/]+)\/featured$/);
+        if (staffProjFeatMatch && method === 'POST') {
+          const projectId = staffProjFeatMatch[1];
+          const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+          if (!row) return sendJson(res, 404, { error: 'Innovation not found' });
+          const nextFeat = row.featured ? 0 : 1;
+          db.prepare('UPDATE projects SET featured = ? WHERE id = ?').run(nextFeat, projectId);
+          return sendJson(res, 200, { id: projectId, featured: Boolean(nextFeat) });
+        }
+
+        const staffProjDelMatch = pathname.match(/^\/api\/staff\/projects\/([^/]+)$/);
+        if (staffProjDelMatch && method === 'DELETE') {
+          const projectId = staffProjDelMatch[1];
+          const info = db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+          if (!info.changes) return sendJson(res, 404, { error: 'Innovation not found' });
+          return sendJson(res, 200, { ok: true, id: projectId });
+        }
+
+        const staffThesisDelMatch = pathname.match(/^\/api\/staff\/theses\/([^/]+)$/);
+        if (staffThesisDelMatch && method === 'DELETE') {
+          const thesisId = staffThesisDelMatch[1];
+          const info = db.prepare('DELETE FROM theses WHERE id = ?').run(thesisId);
+          if (!info.changes) return sendJson(res, 404, { error: 'Thesis not found' });
+          return sendJson(res, 200, { ok: true, id: thesisId });
+        }
+
+        const staffFeedDelMatch = pathname.match(/^\/api\/staff\/feed\/posts\/([^/]+)$/);
+        if (staffFeedDelMatch && method === 'DELETE') {
+          const postId = staffFeedDelMatch[1];
+          const info = db.prepare('DELETE FROM feed_posts WHERE id = ?').run(postId);
+          if (!info.changes) return sendJson(res, 404, { error: 'Feed post not found' });
+          return sendJson(res, 200, { ok: true, id: postId });
+        }
+
+        if (pathname === '/api/staff/news' && method === 'POST') {
+          const body = await readJsonBody(req);
+          const title = (body.title || '').trim();
+          const summary = (body.summary || '').trim();
+          if (!title || !summary) return sendJson(res, 400, { error: 'Bulletin title and summary are required.' });
+          const newsId = `news-${Date.now()}`;
+          const badge = (body.badge || 'Consortium Bulletin').trim();
+          const badgeColor = (body.badgeColor || '#059669').trim();
+          const date = (body.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })).trim();
+          const actionLabel = (body.actionLabel || 'Learn More →').trim();
+          const link = (body.link || '#newsView').trim();
+          db.prepare('INSERT INTO news (id, badge, badge_color, title, date, summary, action_label, link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+            newsId, badge, badgeColor, title, date, summary, actionLabel, link
+          );
+          return sendJson(res, 201, {
+            item: { id: newsId, badge, badgeColor, title, date, summary, actionLabel, link }
+          });
+        }
+
+        const staffNewsDelMatch = pathname.match(/^\/api\/staff\/news\/([^/]+)$/);
+        if (staffNewsDelMatch && method === 'DELETE') {
+          const newsId = staffNewsDelMatch[1];
+          const info = db.prepare('DELETE FROM news WHERE id = ?').run(newsId);
+          if (!info.changes) return sendJson(res, 404, { error: 'News item not found' });
+          return sendJson(res, 200, { ok: true, id: newsId });
         }
 
         const approveMatch = pathname.match(/^\/api\/staff\/partnerships\/([^/]+)\/approve$/);
@@ -1803,7 +1899,9 @@ function createAppServer(options = {}) {
         return;
       }
 
-      const relStatic = pathname === '/' ? 'index.html' : pathname.slice(1);
+      const relStatic = pathname === '/'
+        ? 'index.html'
+        : (pathname === '/admin' ? 'admin.html' : pathname.slice(1));
       if (serveStaticFile(res, ROOT_DIR, relStatic)) return;
 
       res.writeHead(404);

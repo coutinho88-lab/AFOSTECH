@@ -194,12 +194,27 @@ test('Public interactions, confidential partnership file uploads, registration &
   assert.equal(staffLogin.json.user.role, 'staff');
   const staffToken = staffLogin.json.token;
 
-  // Staff Official accesses confidential dashboard & sees uploaded partnership letter
+  // Staff Official accesses Admin Dashboard & sees uploaded partnership letter + full stats
   const staffDash = await api('/api/staff/dashboard', { token: staffToken });
   assert.equal(staffDash.status, 200);
+  assert.ok(staffDash.json.stats && typeof staffDash.json.stats.totalSalesUSD === 'number');
+  assert.ok(Array.isArray(staffDash.json.projects) && staffDash.json.projects.length >= 1);
+  assert.ok(Array.isArray(staffDash.json.feedPosts));
   const suaReq = staffDash.json.partnershipRequests.find(r => r.id === newReqId);
   assert.ok(suaReq);
   assert.ok(suaReq.letterFilePath.startsWith('/uploads/letters/'));
+
+  // Staff publishes and deletes an official news bulletin + toggles featured innovation
+  const newsPost = await api('/api/staff/news', {
+    method: 'POST',
+    token: staffToken,
+    body: JSON.stringify({ badge: 'Admin Bulletin', title: '2026 Secretariat Audit Complete', summary: 'All partner labs certified.' })
+  });
+  assert.equal(newsPost.status, 201);
+  const delNews = await api(`/api/staff/news/${newsPost.json.item.id}`, { method: 'DELETE', token: staffToken });
+  assert.equal(delNews.status, 200);
+  const featToggle = await api('/api/staff/projects/proj-2/featured', { method: 'POST', token: staffToken });
+  assert.equal(featToggle.status, 200);
 
   // Staff approves partnership -> creates new university chapter
   const approveRes = await api(`/api/staff/partnerships/${newReqId}/approve`, { method: 'POST', token: staffToken });

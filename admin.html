@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFOSTECH Admin Dashboard | Secretariat Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <!-- Login Gate (Shown unless authenticated as role === 'staff') -->
+  <div id="adminAuthGate" class="admin-auth-gate" style="display: none;">
+    <div class="auth-gate-card">
+      <div class="auth-gate-brand">
+        <img src="assets/logo.jpg" alt="AFOSTECH">
+        <div>
+          <span class="gate-kicker">Restricted Secretariat Access</span>
+          <h1>AFOSTECH Admin Dashboard</h1>
+        </div>
+      </div>
+      <p class="gate-desc">
+        Sign in with an authorized <strong>AFOSTECH Staff Official</strong> email to manage university partnerships, student enrollment verifications, innovations, theses, marketplace orders, and feed moderation.
+      </p>
+      <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="adminEmail">Official Staff Email *</label>
+          <input type="email" id="adminEmail" class="form-control" required placeholder="admin@afostech-students.org">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="adminPassword">Password *</label>
+          <input type="password" id="adminPassword" class="form-control" required placeholder="Enter staff password">
+        </div>
+        <button type="submit" class="btn-admin-primary" style="width: 100%;">🛡️ Sign In to Admin Dashboard →</button>
+      </form>
+      <div class="gate-demo-hint">
+        <span>Staff Credentials:</span>
+        <button type="button" class="demo-chip" onclick="fillAdminDemo('admin@afostech-students.org', 'admin123')">Secretariat Admin</button>
+        <button type="button" class="demo-chip" onclick="fillAdminDemo('director.academic@afostech-students.org', 'admin123')">Academic Director</button>
+      </div>
+      <div class="gate-footer-links">
+        <a href="index.html">← Back to AFOSTECH Portal</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Admin Shell -->
+  <div id="adminShell" class="admin-shell" style="display: none;">
+    <!-- Mobile Drawer Backdrop -->
+    <div id="adminSidebarBackdrop" class="admin-sidebar-backdrop" onclick="closeAdminSidebar()"></div>
+
+    <!-- Left Navigation Sidebar -->
+    <aside id="adminSidebar" class="admin-sidebar">
+      <div class="sidebar-brand">
+        <img src="assets/logo.jpg" alt="AFOSTECH">
+        <div>
+          <div class="sb-title">AFOS<span>TECH</span> Admin</div>
+          <div class="sb-sub">Secretariat Control</div>
+        </div>
+        <button type="button" class="sidebar-close-mobile" onclick="closeAdminSidebar()">&times;</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button type="button" class="sb-nav-btn active" data-sec="overview" onclick="switchAdminSection('overview')">
+          <span>📊</span> <span>Overview &amp; Analytics</span>
+        </button>
+        <button type="button" class="sb-nav-btn" data-sec="verifications" onclick="switchAdminSection('verifications')">
+          <span>🛡️</span> <span>Enrollments &amp; Members</span>
+          <span class="sb-badge" id="badgePendingVerifications" style="display: none;">0</span>
+        </button>
+        <button type="button" class="sb-nav-btn" data-sec="partnerships" onclick="switchAdminSection('partnerships')">
+          <span>🏛️</span> <span>University Partnerships</span>
+          <span class="sb-badge" id="badgePendingPartnerships" style="display: none;">0</span>
+        </button>
+        <button type="button" class="sb-nav-btn" data-sec="catalog" onclick="switchAdminSection('catalog')">
+          <span>🔬</span> <span>Innovations &amp; Theses</span>
+        </button>
+        <button type="button" class="sb-nav-btn" data-sec="marketplace" onclick="switchAdminSection('marketplace')">
+          <span>🛒</span> <span>Marketplace &amp; Revenue</span>
+        </button>
+        <button type="button" class="sb-nav-btn" data-sec="community" onclick="switchAdminSection('community')">
+          <span>🥑</span> <span>Food Feed &amp; Bulletins</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="index.html" class="sb-link-btn">🌐 Open Web Portal ↗</a>
+        <a href="/foodfeed-app/index.html" id="adminOpenFeedLink" class="sb-link-btn">📱 Open Phone App ↗</a>
+        <button type="button" class="sb-logout-btn" onclick="handleAdminLogout()">Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="admin-content-wrap">
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <button type="button" class="mobile-menu-trigger" onclick="openAdminSidebar()" aria-label="Open admin menu">☰</button>
+          <div>
+            <h2 id="adminTopTitle">Overview &amp; Consortium Analytics</h2>
+            <span id="adminTopSub" class="topbar-sub">Real-time SQLite oversight across AFOSTECH Portal &amp; Food Feed App</span>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button type="button" class="btn-admin-outline" onclick="refreshAdminData()">↻ Refresh</button>
+          <div class="staff-user-pill" id="adminStaffPill">🛡️ Staff Official</div>
+        </div>
+      </header>
+
+      <main id="adminMainBody" class="admin-main-body">
+        <!-- Rendered dynamically by admin.js -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Letter / Detail Inspection Modal -->
+  <div id="adminModalBackdrop" class="admin-modal-backdrop" onclick="if (event.target === this) closeAdminModal()">
+    <div class="admin-modal-dialog">
+      <div class="admin-modal-header">
+        <div>
+          <span id="adminModalKicker" class="gate-kicker">Official Document</span>
+          <h3 id="adminModalTitle">Details</h3>
+        </div>
+        <button type="button" class="admin-modal-close" onclick="closeAdminModal()">&times;</button>
+      </div>
+      <div id="adminModalBody" class="admin-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="adminToastContainer" class="admin-toast-container"></div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>

@@ -2853,7 +2853,10 @@ function renderStaffPortalContents() {
         <h3 style="font-size: 1.3rem; font-weight: 900; color: white;">AFOSTECH Official Staff Control Center</h3>
         <p style="font-size: 0.85rem; color: #d1fae5;">Signed in as: <strong>${AppState.currentStaffUser.name}</strong> (${AppState.currentStaffUser.role}) &bull; ${AppState.currentStaffUser.email}</p>
       </div>
-      <button class="btn-outline" style="background: white; padding: 6px 14px; font-size: 0.8rem;" onclick="logoutCurrentUser()">Sign Out</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <a href="admin.html" class="btn-primary" style="background: #ffffff; color: #064e3b; padding: 7px 14px; font-size: 0.8rem; text-decoration: none;">🛡️ Open Full Admin Dashboard ↗</a>
+        <button class="btn-outline" style="background: rgba(255,255,255,0.16); color: white; border-color: rgba(255,255,255,0.4); padding: 6px 14px; font-size: 0.8rem;" onclick="logoutCurrentUser()">Sign Out</button>
+      </div>
     </div>
 
     <!-- Section 1: Confidential University Partnerships Review -->
