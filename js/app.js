@@ -3575,7 +3575,56 @@ async function openTryProductModal(projectId) {
     }
   } catch (e) {}
 
-  showToast('⚠️ Start the AFOSTECH Food Feed server ("npm start" in AFOSTECH-FoodFeed) or open http://localhost:3001/portal/ so Try Product can switch apps.');
+  try {
+    const localMirrorResp = await fetch('foodfeed-app/index.html', { method: 'HEAD' });
+    if (localMirrorResp.ok) {
+      window.location.href = `foodfeed-app/index.html${qs}`;
+      return;
+    }
+  } catch (e) {}
+
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocalHost) {
+    showToast('⚠️ Start the AFOSTECH Food Feed server ("npm start" in AFOSTECH-FoodFeed) or open http://localhost:3001/portal/ so Try Product can switch apps.');
+    return;
+  }
+
+  // Public web / GitHub Pages fallback if AFOSTECH-FoodFeed repo is not yet published on Pages
+  const project = (AppState.projects || []).find(p => p.id === projectId);
+  if (project) {
+    const modal = document.getElementById('projectDetailModal');
+    const body = document.getElementById('projectModalBody');
+    const titleEl = document.getElementById('modalProjectTitle');
+    if (titleEl) titleEl.textContent = `Try ${project.title}`;
+    if (body && modal) {
+      body.innerHTML = `
+        <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 14px; padding: 18px; margin-bottom: 16px;">
+          <div style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #047857; margin-bottom: 4px;">
+            🛒 AFOSTECH Food Feed &amp; Marketplace App
+          </div>
+          <h4 style="font-size: 1.12rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">${project.title}</h4>
+          <p style="font-size: 0.86rem; color: #334155; margin-bottom: 12px;">
+            Produced by <strong>${project.universityName}</strong> student food science researchers. Revenue split: <strong>85% Student Innovators / 15% AFOSTECH Grants</strong>.
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; background: #ffffff; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 12px;">
+            <div><strong>Campus Outlet:</strong> Department of Food Science &amp; Technology, ${project.universityName}</div>
+            <div><strong>Ordering Desk:</strong> secretariat@afostech-students.org</div>
+          </div>
+          <p style="font-size: 0.78rem; color: #475569; line-height: 1.45;">
+            Note: The standalone <strong>AFOSTECH-FoodFeed</strong> app repository is ready locally and will link automatically here once published to GitHub Pages at <code>/AFOSTECH-FoodFeed/</code>.
+          </p>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn-outline js-modal-close" onclick="closeModal()">Close</button>
+          <button type="button" class="btn-primary" onclick="openProjectDetail('${project.id}')">Inspect Lab Prototype →</button>
+        </div>
+      `;
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      return;
+    }
+  }
+  showToast('ℹ️ Publish the AFOSTECH-FoodFeed repository to GitHub Pages to enable live redirection from this site.');
 }
 
 // Helper: Escape HTML
