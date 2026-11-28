@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const os = require('node:os');
 const { URL } = require('node:url');
 const { createDatabase, DB_PATH, UPLOADS_DIR, hashPassword, verifyPassword } = require('./db/database');
 const { seedDatabase } = require('./db/seed');
@@ -269,7 +270,7 @@ function mapAppAccountRow(row, db) {
   };
 }
 
-function mapFeedPostRow(p, comments, likedSet, repostedSet) {
+function mapFeedPostRow(p, comments, likedSet, repostedSet, bookmarkedSet) {
   return {
     id: p.id,
     appAccountId: p.app_account_id || null,
@@ -295,6 +296,7 @@ function mapFeedPostRow(p, comments, likedSet, repostedSet) {
     repostsCount: p.reposts_count || 0,
     isLiked: Boolean(likedSet && likedSet.has(p.id)),
     isReposted: Boolean(repostedSet && repostedSet.has(p.id)),
+    isBookmarked: Boolean(bookmarkedSet && bookmarkedSet.has(p.id)),
     timeAgo: p.time_ago || 'Just now',
     datePosted: p.date_posted || 'Nov 2026',
     comments: (comments || []).map(c => ({
@@ -307,6 +309,30 @@ function mapFeedPostRow(p, comments, likedSet, repostedSet) {
       timeAgo: c.time_ago || 'Just now',
       text: c.text
     }))
+  };
+}
+
+function mapFeedMessageRow(m) {
+  return {
+    id: m.id,
+    post_id: m.post_id,
+    postId: m.post_id,
+    recipient_name: m.recipient_name,
+    recipientName: m.recipient_name,
+    recipient_email: m.recipient_email,
+    recipient_account_id: m.recipient_account_id,
+    sender_name: m.sender_name,
+    senderName: m.sender_name,
+    sender_contact: m.sender_contact,
+    senderContact: m.sender_contact,
+    inquiry_type: m.inquiry_type,
+    inquiryType: m.inquiry_type,
+    message_text: m.message_text,
+    messageText: m.message_text,
+    isRead: Boolean(m.is_read),
+    replies: safeJsonParse(m.replies_json, []),
+    created_at: m.created_at,
+    createdAt: m.created_at
   };
 }
 
@@ -416,6 +442,19 @@ function mapDispatchRow(d) {
     studentId: d.student_id,
     remarks: d.remarks
   };
+}
+
+function applyCorsHeaders(req, res) {
+  const origin = req.headers.origin;
+  if (origin && (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)(:\d+)?$/i.test(origin) || origin.includes('github.io') || origin === 'null')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
 }
 
 function sendJson(res, status, data, headers = {}) {
@@ -620,6 +659,13 @@ function createAppServer(options = {}) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = decodeURIComponent(url.pathname);
     const method = req.method.toUpperCase();
+
+    applyCorsHeaders(req, res);
+    if (method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     try {
       const currentUser = getSessionUser(req);
@@ -1221,6 +1267,7 @@ function createAppServer(options = {}) {
         const actorKey = getVoterKey(req, currentUser, currentAppUser);
         const likedSet = new Set(db.prepare('SELECT post_id FROM feed_post_likes WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
         const repostedSet = new Set(db.prepare('SELECT post_id FROM feed_post_reposts WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
+        const bookmarkedSet = new Set(db.prepare('SELECT post_id FROM feed_post_bookmarks WHERE actor_key = ?').all(actorKey).map(r => r.post_id));
 
         const feedRows = db.prepare('SELECT * FROM feed_posts ORDER BY rowid DESC').all();
         const feedCommentRows = db.prepare('SELECT * FROM feed_comments ORDER BY rowid ASC').all();
@@ -1229,7 +1276,7 @@ function createAppServer(options = {}) {
           if (!commentsByPost[fc.post_id]) commentsByPost[fc.post_id] = [];
           commentsByPost[fc.post_id].push(fc);
         }
-        const feedPosts = feedRows.map(p => mapFeedPostRow(p, commentsByPost[p.id] || [], likedSet, repostedSet));
+        const feedPosts = feedRows.map(p => mapFeedPostRow(p, commentsByPost[p.id] || [], likedSet, repostedSet, bookmarkedSet));
         const marketplaceOrders = db.prepare('SELECT * FROM marketplace_orders ORDER BY rowid DESC').all().map(mapMarketplaceOrderRow);
 
         let messages = [];
@@ -1238,17 +1285,24 @@ function createAppServer(options = {}) {
             SELECT * FROM feed_messages
             WHERE recipient_account_id = ? OR LOWER(recipient_email) = LOWER(?) OR LOWER(recipient_name) = LOWER(?)
             ORDER BY rowid DESC
-          `).all(currentAppUser.id, currentAppUser.email, currentAppUser.name);
+          `).all(currentAppUser.id, currentAppUser.email, currentAppUser.name).map(mapFeedMessageRow);
         }
 
         const upvotedIds = isMember
           ? db.prepare('SELECT project_id FROM project_upvotes WHERE voter_key = ?').all(actorKey).map(r => r.project_id)
           : [];
 
+        const notifications = {
+          unreadMessagesCount: messages.filter(m => !m.isRead).length,
+          savedPostsCount: bookmarkedSet.size,
+          totalOrdersCount: marketplaceOrders.length
+        };
+
         return sendJson(res, 200, {
           appUser: currentAppUser,
           canAccessMemberSections: isMember,
           achievements,
+          notifications,
           feedPosts,
           marketplaceOrders,
           organization: orgRow ? safeJsonParse(orgRow.data_json, {}) : {},
@@ -1493,7 +1547,78 @@ function createAppServer(options = {}) {
         );
 
         const createdRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
-        return sendJson(res, 201, { post: mapFeedPostRow(createdRow, [], new Set([postId]), new Set()) });
+        return sendJson(res, 201, { post: mapFeedPostRow(createdRow, [], new Set([postId]), new Set(), new Set()) });
+      }
+
+      const feedPostItemMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)$/);
+      if (feedPostItemMatch && (method === 'PUT' || method === 'DELETE')) {
+        const postId = feedPostItemMatch[1];
+        const postRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Feed post not found' });
+
+        const isOwner = Boolean(
+          (currentUser && currentUser.role === 'staff') ||
+          (currentAppUser && postRow.app_account_id && postRow.app_account_id === currentAppUser.id) ||
+          (currentAppUser && postRow.linked_user_id && currentAppUser.linkedAfostechUserId === postRow.linked_user_id) ||
+          (currentUser && postRow.linked_user_id && currentUser.id === postRow.linked_user_id)
+        );
+        if (!isOwner) {
+          return sendJson(res, 403, { error: 'Only the post author can edit or delete this post.' });
+        }
+
+        if (method === 'DELETE') {
+          db.prepare('DELETE FROM feed_posts WHERE id = ?').run(postId);
+          return sendJson(res, 200, { ok: true, id: postId });
+        }
+
+        const body = await readJsonBody(req);
+        const title = body.title !== undefined ? String(body.title).trim() : (postRow.title || '');
+        const content = body.content !== undefined ? String(body.content).trim() : postRow.content;
+        const mediaCaption = body.mediaCaption !== undefined ? String(body.mediaCaption).trim() : (postRow.media_caption || '');
+        const topicTag = body.topicTag !== undefined ? String(body.topicTag).trim() : postRow.topic_tag;
+        if (!content && !mediaCaption) {
+          return sendJson(res, 400, { error: 'Post content or caption cannot be empty.' });
+        }
+
+        db.prepare(`
+          UPDATE feed_posts SET title = ?, content = ?, media_caption = ?, topic_tag = ?, topic_label = ?
+          WHERE id = ?
+        `).run(title || null, content || mediaCaption, mediaCaption || null, topicTag, topicTag.replace('#', ''), postId);
+
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const updatedRow = db.prepare('SELECT * FROM feed_posts WHERE id = ?').get(postId);
+        const postComments = db.prepare('SELECT * FROM feed_comments WHERE post_id = ? ORDER BY rowid ASC').all(postId);
+        const isLiked = Boolean(db.prepare('SELECT 1 FROM feed_post_likes WHERE post_id = ? AND actor_key = ?').get(postId, actorKey));
+        const isReposted = Boolean(db.prepare('SELECT 1 FROM feed_post_reposts WHERE post_id = ? AND actor_key = ?').get(postId, actorKey));
+        const isBookmarked = Boolean(db.prepare('SELECT 1 FROM feed_post_bookmarks WHERE post_id = ? AND actor_key = ?').get(postId, actorKey));
+        return sendJson(res, 200, {
+          post: mapFeedPostRow(
+            updatedRow,
+            postComments,
+            isLiked ? new Set([postId]) : new Set(),
+            isReposted ? new Set([postId]) : new Set(),
+            isBookmarked ? new Set([postId]) : new Set()
+          )
+        });
+      }
+
+      const feedBookmarkMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/bookmark$/);
+      if (feedBookmarkMatch && method === 'POST') {
+        const postId = feedBookmarkMatch[1];
+        const postRow = db.prepare('SELECT id FROM feed_posts WHERE id = ?').get(postId);
+        if (!postRow) return sendJson(res, 404, { error: 'Post not found' });
+
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const existing = db.prepare('SELECT 1 FROM feed_post_bookmarks WHERE post_id = ? AND actor_key = ?').get(postId, actorKey);
+        let isBookmarked;
+        if (existing) {
+          db.prepare('DELETE FROM feed_post_bookmarks WHERE post_id = ? AND actor_key = ?').run(postId, actorKey);
+          isBookmarked = false;
+        } else {
+          db.prepare('INSERT INTO feed_post_bookmarks (post_id, actor_key) VALUES (?, ?)').run(postId, actorKey);
+          isBookmarked = true;
+        }
+        return sendJson(res, 200, { postId, isBookmarked });
       }
 
       const feedLikeMatch = pathname.match(/^\/api\/feed\/posts\/([^/]+)\/like$/);
@@ -1602,7 +1727,58 @@ function createAppServer(options = {}) {
         );
 
         return sendJson(res, 201, {
-          message: db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId)
+          message: mapFeedMessageRow(db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId))
+        });
+      }
+
+      const msgReadMatch = pathname.match(/^\/api\/app\/messages\/([^/]+)\/read$/);
+      if (msgReadMatch && method === 'POST') {
+        if (!currentAppUser) return sendJson(res, 401, { error: 'Sign in required' });
+        const msgId = msgReadMatch[1];
+        const row = db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId);
+        if (!row) return sendJson(res, 404, { error: 'Message not found' });
+        db.prepare('UPDATE feed_messages SET is_read = 1 WHERE id = ?').run(msgId);
+        return sendJson(res, 200, { message: mapFeedMessageRow(db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId)) });
+      }
+
+      const msgReplyMatch = pathname.match(/^\/api\/app\/messages\/([^/]+)\/reply$/);
+      if (msgReplyMatch && method === 'POST') {
+        if (!currentAppUser) return sendJson(res, 401, { error: 'Sign in required' });
+        const msgId = msgReplyMatch[1];
+        const row = db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId);
+        if (!row) return sendJson(res, 404, { error: 'Message not found' });
+        const body = await readJsonBody(req);
+        const text = (body.text || '').trim();
+        if (!text) return sendJson(res, 400, { error: 'Reply text is required.' });
+        const replies = safeJsonParse(row.replies_json, []);
+        replies.push({
+          id: `rep-${Date.now()}`,
+          senderName: currentAppUser.name,
+          senderProfession: currentAppUser.profession,
+          text,
+          sentAt: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        });
+        db.prepare('UPDATE feed_messages SET replies_json = ?, is_read = 1 WHERE id = ?').run(JSON.stringify(replies), msgId);
+        return sendJson(res, 201, { message: mapFeedMessageRow(db.prepare('SELECT * FROM feed_messages WHERE id = ?').get(msgId)) });
+      }
+
+      if (pathname === '/api/app/notifications' && method === 'GET') {
+        const actorKey = getVoterKey(req, currentUser, currentAppUser);
+        const unreadMessages = currentAppUser
+          ? db.prepare(`
+              SELECT COUNT(*) AS c FROM feed_messages
+              WHERE (recipient_account_id = ? OR LOWER(recipient_email) = LOWER(?) OR LOWER(recipient_name) = LOWER(?))
+              AND COALESCE(is_read, 0) = 0
+            `).get(currentAppUser.id, currentAppUser.email, currentAppUser.name).c
+          : 0;
+        const savedPostsCount = db.prepare('SELECT COUNT(*) AS c FROM feed_post_bookmarks WHERE actor_key = ?').get(actorKey).c;
+        const myPostsCount = currentAppUser
+          ? db.prepare('SELECT COUNT(*) AS c FROM feed_posts WHERE app_account_id = ?').get(currentAppUser.id).c
+          : 0;
+        return sendJson(res, 200, {
+          unreadMessagesCount: unreadMessages,
+          savedPostsCount,
+          myPostsCount
         });
       }
 
@@ -1916,13 +2092,37 @@ function createAppServer(options = {}) {
   return server;
 }
 
+function getLanUrls(port) {
+  const urls = [];
+  const nets = os.networkInterfaces();
+  for (const list of Object.values(nets)) {
+    for (const iface of list || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        urls.push(`http://${iface.address}:${port}`);
+      }
+    }
+  }
+  return urls;
+}
+
 if (require.main === module) {
   const PORT = Number(process.env.PORT) || 3000;
   const server = createAppServer();
-  server.listen(PORT, () => {
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Close the other process or pass PORT=3005.`);
+      process.exit(1);
+    }
+    throw err;
+  });
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`AFOSTECH Server running at http://localhost:${PORT}`);
+    console.log(`Food Feed App: http://localhost:${PORT}/foodfeed-app/`);
+    console.log(`Admin Dashboard: http://localhost:${PORT}/admin`);
+    const lan = getLanUrls(PORT);
+    if (lan.length) console.log(`Phone Wi-Fi Access: ${lan[0]}`);
     console.log(`SQLite Database stored at ${DB_PATH}`);
   });
 }
 
-module.exports = { createAppServer };
+module.exports = { createAppServer, getLanUrls };

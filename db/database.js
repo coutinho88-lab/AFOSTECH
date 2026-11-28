@@ -308,6 +308,14 @@ function createDatabase(dbPath = DB_PATH) {
       FOREIGN KEY (post_id) REFERENCES feed_posts(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS feed_post_bookmarks (
+      post_id TEXT NOT NULL,
+      actor_key TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (post_id, actor_key),
+      FOREIGN KEY (post_id) REFERENCES feed_posts(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS feed_comments (
       id TEXT PRIMARY KEY,
       post_id TEXT NOT NULL,
@@ -357,9 +365,13 @@ function createDatabase(dbPath = DB_PATH) {
 
   try {
     db.exec('ALTER TABLE projects ADD COLUMN commercial_json TEXT;');
-  } catch (e) {
-    // Column already exists on initialized DBs
-  }
+  } catch (e) {}
+  try {
+    db.exec('ALTER TABLE feed_messages ADD COLUMN is_read INTEGER DEFAULT 0;');
+  } catch (e) {}
+  try {
+    db.exec('ALTER TABLE feed_messages ADD COLUMN replies_json TEXT;');
+  } catch (e) {}
 
   return db;
 }

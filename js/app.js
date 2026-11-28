@@ -52,6 +52,7 @@ const AppState = {
   currentStudentUser: null,
   authToken: null,
   isBackendOnline: false,
+  apiBase: '',
 
   // UI temporary storage
   customSubmissions: [],
@@ -62,14 +63,38 @@ function isHttpOrigin() {
   return window.location.protocol === 'http:' || window.location.protocol === 'https:';
 }
 
+async function detectPortalBackendBase() {
+  if (AppState.apiBase) return AppState.apiBase;
+  const port = window.location.port;
+  if (isHttpOrigin() && (port === '3000' || port === '3001' || !port)) {
+    return '';
+  }
+  const candidates = ['http://127.0.0.1:3000', 'http://localhost:3000', 'http://127.0.0.1:3001'];
+  for (const base of candidates) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 900);
+      const probe = await fetch(base + '/api/health', { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (probe.ok) {
+        AppState.apiBase = base;
+        return base;
+      }
+    } catch (e) {}
+  }
+  return '';
+}
+
 async function apiRequest(url, options = {}) {
+  const base = AppState.apiBase || '';
+  const targetUrl = /^https?:\/\//i.test(url) ? url : (base + url);
   const headers = {
     'Content-Type': 'application/json',
     ...(AppState.authToken ? { Authorization: 'Bearer ' + AppState.authToken } : {}),
     ...(options.headers || {})
   };
-  const res = await fetch(url, {
-    credentials: 'same-origin',
+  const res = await fetch(targetUrl, {
+    credentials: base ? 'include' : 'same-origin',
     ...options,
     headers
   });
@@ -136,7 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Load persistent data from SQLite backend (graceful fallback to static data on file://)
 async function loadStoredData() {
-  if (isHttpOrigin()) {
+  await detectPortalBackendBase();
+  if (isHttpOrigin() || AppState.apiBase) {
     try {
       const data = await apiRequest('/api/bootstrap');
       AppState.isBackendOnline = true;

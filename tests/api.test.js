@@ -399,4 +399,59 @@ test('Phone App supports public account creation, profile editing, feed media+ca
   });
   assert.equal(orderRes.status, 201);
   assert.equal(orderRes.json.order.productName, 'App-Submitted Spirulina Crunch');
+
+  // 4. Verify CORS preflight, Bookmarking, Post Edit/Delete, Inbox Read/Reply & Notifications
+  const corsRes = await fetch(`${baseUrl}/api/app/bootstrap`, {
+    method: 'OPTIONS',
+    headers: { Origin: 'http://127.0.0.1:5500' }
+  });
+  assert.equal(corsRes.status, 204);
+  assert.equal(corsRes.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5500');
+
+  const bmRes = await api(`/api/feed/posts/${createdPostId}/bookmark`, { method: 'POST', token: guestToken });
+  assert.equal(bmRes.status, 200);
+  assert.equal(bmRes.json.isBookmarked, true);
+
+  const editPostRes = await api(`/api/feed/posts/${createdPostId}`, {
+    method: 'PUT',
+    token: guestToken,
+    body: JSON.stringify({ title: 'Updated Pectin Gelation Experiment', content: 'Updated protocol at pH 3.1 #FoodChemistry' })
+  });
+  assert.equal(editPostRes.status, 200);
+  assert.equal(editPostRes.json.post.title, 'Updated Pectin Gelation Experiment');
+
+  // Send Direct Message to Chef Clara's newly authored post & test Read + Reply + Notifications
+  const dmRes = await api(`/api/feed/posts/${createdPostId}/messages`, {
+    method: 'POST',
+    token: linkedToken,
+    body: JSON.stringify({
+      senderName: 'Grace Nabirye',
+      senderContact: 'g.nabirye@mak.ac.ug',
+      messageText: 'Can we collaborate on testing citrus pectin in mango films?'
+    })
+  });
+  assert.equal(dmRes.status, 201);
+  const msgId = dmRes.json.message.id;
+
+  const notifBefore = await api('/api/app/notifications', { token: guestToken });
+  assert.equal(notifBefore.status, 200);
+  assert.ok(notifBefore.json.unreadMessagesCount >= 1);
+  assert.equal(notifBefore.json.savedPostsCount, 1);
+
+  const readRes = await api(`/api/app/messages/${msgId}/read`, { method: 'POST', token: guestToken });
+  assert.equal(readRes.status, 200);
+  assert.equal(readRes.json.message.isRead, true);
+
+  const replyRes = await api(`/api/app/messages/${msgId}/reply`, {
+    method: 'POST',
+    token: guestToken,
+    body: JSON.stringify({ text: 'Yes! Sending sample lab ratios tonight.' })
+  });
+  assert.equal(replyRes.status, 201);
+  assert.equal(replyRes.json.message.isRead, true);
+  assert.equal(replyRes.json.message.replies.length, 1);
+
+  const delPostRes = await api(`/api/feed/posts/${createdPostId}`, { method: 'DELETE', token: guestToken });
+  assert.equal(delPostRes.status, 200);
+  assert.equal(delPostRes.json.ok, true);
 });
